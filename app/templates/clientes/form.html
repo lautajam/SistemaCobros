@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block titulo %}{{ "Editar cliente" if cliente else "Nuevo cliente" }}{% endblock %}
+{% block contenido %}
+<a class="enlace-volver" href="{{ url_for('clientes.lista') }}">&larr; Volver a clientes</a>
+<h1>{{ "Editar cliente" if cliente else "Nuevo cliente" }}</h1>
+
+<form class="formulario" method="post">
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Nombre y apellido / Razón social *</label>
+            <input type="text" name="nombre" required value="{{ cliente.nombre if cliente else '' }}">
+        </div>
+        <div class="grupo-campo">
+            <label>DNI / CUIT</label>
+            <input type="text" name="dni_cuit" value="{{ cliente.dni_cuit if cliente else '' }}">
+        </div>
+    </div>
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Teléfono</label>
+            <input type="text" name="telefono" value="{{ cliente.telefono if cliente else '' }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Email</label>
+            <input type="email" name="email" value="{{ cliente.email if cliente else '' }}">
+        </div>
+    </div>
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Dirección</label>
+            <input type="text" name="direccion" value="{{ cliente.direccion if cliente else '' }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Localidad</label>
+            <input type="text" name="localidad" value="{{ cliente.localidad if cliente else '' }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Código postal</label>
+            <input type="text" name="codigo_postal" value="{{ cliente.codigo_postal if cliente else '' }}">
+        </div>
+    </div>
+    <div class="grupo-campo">
+        <label>Observaciones</label>
+        <textarea name="observaciones">{{ cliente.observaciones if cliente else '' }}</textarea>
+    </div>
+    <div class="acciones-form">
+        <button class="boton" type="submit">Guardar cliente</button>
+        <a class="boton secundario" href="{{ url_for('clientes.lista') }}">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

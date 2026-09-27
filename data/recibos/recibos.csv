@@ -1,0 +1,2 @@
+id,numero,cliente_id,boleto_id,fecha,trabajo,descripcion,importe,forma_pago,observaciones
+R0001,0001,C00001,,2026-09-15,cambio ssd,asdas,25000,Efectivo,asdasddsa

@@ -1,0 +1,9 @@
+Flask>=2.3,<4
+Jinja2>=3.1
+pdfkit>=1.0
+
+# pdfkit depende del binario del sistema "wkhtmltopdf".
+# Instalarlo por separado según el sistema operativo:
+#   Windows / macOS: https://wkhtmltopdf.org/downloads.html
+#   Debian/Ubuntu:   sudo apt-get install wkhtmltopdf
+#   Fedora:          sudo dnf install wkhtmltopdf

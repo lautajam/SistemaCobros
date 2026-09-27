@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titulo %}Clientes{% endblock %}
+{% block contenido %}
+<h1>Clientes</h1>
+<p class="subtitulo">Buscá un cliente existente o creá uno nuevo.</p>
+
+{% if error %}<div class="alerta-error">{{ error }}</div>{% endif %}
+
+<div class="barra-busqueda">
+    <form method="get" style="display:flex; gap:10px;">
+        <input type="text" name="q" placeholder="Buscar por nombre, DNI/CUIT, teléfono o email" value="{{ q }}" style="min-width:320px;">
+        <button class="boton secundario" type="submit">Buscar</button>
+    </form>
+    <a class="boton" href="{{ url_for('clientes.nuevo') }}">+ Nuevo cliente</a>
+</div>
+
+{% if clientes %}
+<table class="tabla">
+    <thead>
+        <tr><th>Nombre</th><th>DNI/CUIT</th><th>Teléfono</th><th>Localidad</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for c in clientes %}
+        <tr>
+            <td>{{ c.nombre }}</td>
+            <td>{{ c.dni_cuit }}</td>
+            <td>{{ c.telefono }}</td>
+            <td>{{ c.localidad }}</td>
+            <td class="acciones">
+                <a class="boton chico" href="{{ url_for('clientes.detalle', cliente_id=c.id) }}">Ver historial</a>
+                <a class="boton chico secundario" href="{{ url_for('clientes.editar', cliente_id=c.id) }}">Editar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="vacio">No se encontraron clientes.</div>
+{% endif %}
+{% endblock %}

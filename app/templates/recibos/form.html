@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block titulo %}{{ "Editar recibo" if recibo else "Nuevo recibo" }}{% endblock %}
+{% block contenido %}
+{% if recibo %}
+<a class="enlace-volver" href="{{ url_for('recibos.detalle', recibo_id=recibo.id) }}">&larr; Volver al recibo</a>
+{% else %}
+<a class="enlace-volver" href="{{ url_for('main.index') }}">&larr; Volver al inicio</a>
+{% endif %}
+
+<h1>{{ "Editar recibo N.º " + recibo.numero if recibo else "Nuevo recibo" }}</h1>
+
+{% if boleto %}
+<p class="subtitulo">
+    Generado a partir del boleto N.º {{ boleto.numero }}
+    ({{ boleto.equipo }} {{ boleto.marca }} {{ boleto.modelo }})
+</p>
+{% endif %}
+
+{% if error %}<div class="alerta-error">{{ error }}</div>{% endif %}
+
+<form class="formulario" method="post">
+    {% if boleto %}<input type="hidden" name="boleto_id" value="{{ boleto.id }}">{% endif %}
+
+    {% if recibo %}
+        <div class="grupo-campo">
+            <label>Cliente</label>
+            <div class="cliente-seleccionado" style="display:block;">
+                <strong>{{ cliente_prefill.nombre }}</strong>
+                {% if cliente_prefill.telefono %} · {{ cliente_prefill.telefono }}{% endif %}
+            </div>
+        </div>
+    {% else %}
+        {% include "clientes/_buscador.html" %}
+    {% endif %}
+
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Fecha</label>
+            <input type="date" name="fecha" value="{{ recibo.fecha if recibo else '' }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Importe ($)</label>
+            <input type="number" step="0.01" name="importe" value="{{ recibo.importe if recibo else '' }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Forma de pago</label>
+            <select name="forma_pago">
+                {% set actual = recibo.forma_pago if recibo else '' %}
+                <option value="Efectivo" {{ "selected" if actual == "Efectivo" }}>Efectivo</option>
+                <option value="Transferencia" {{ "selected" if actual == "Transferencia" }}>Transferencia</option>
+                <option value="Tarjeta de débito" {{ "selected" if actual == "Tarjeta de débito" }}>Tarjeta de débito</option>
+                <option value="Tarjeta de crédito" {{ "selected" if actual == "Tarjeta de crédito" }}>Tarjeta de crédito</option>
+                <option value="Otro" {{ "selected" if actual == "Otro" }}>Otro</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="grupo-campo">
+        <label>Trabajo realizado</label>
+        <input type="text" name="trabajo" placeholder="Ej: Cambio de SSD" value="{{ recibo.trabajo if recibo else '' }}">
+    </div>
+
+    <div class="grupo-campo">
+        <label>Descripción detallada</label>
+        <textarea name="descripcion">{{ recibo.descripcion if recibo else '' }}</textarea>
+    </div>
+
+    <div class="grupo-campo">
+        <label>Observaciones</label>
+        <textarea name="observaciones">{{ recibo.observaciones if recibo else '' }}</textarea>
+    </div>
+
+    <div class="acciones-form">
+        <button class="boton verde" type="submit">
+            {{ "Guardar cambios" if recibo else "Guardar y generar PDF" }}
+        </button>
+        {% if recibo %}
+        <a class="boton secundario" href="{{ url_for('recibos.detalle', recibo_id=recibo.id) }}">Cancelar</a>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/clientes.js') }}"></script>
+{% endblock %}

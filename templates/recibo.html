@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Recibo {{ recibo.numero }}</title>
+<style>
+    /* Editable libremente: ver comentario en templates/boleto.html */
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Helvetica', Arial, sans-serif;
+        font-size: 12px;
+        color: #1c1c1c;
+        margin: 0;
+        padding: 0;
+    }
+    .hoja { padding: 6mm 4mm; }
+    .encabezado {
+        display: table;
+        width: 100%;
+        border-bottom: 3px solid #1f6b3e;
+        padding-bottom: 10px;
+        margin-bottom: 14px;
+    }
+    .encabezado .logo-col, .encabezado .datos-col, .encabezado .titulo-col {
+        display: table-cell;
+        vertical-align: middle;
+    }
+    .encabezado .logo-col { width: 70px; }
+    .encabezado .logo-col img { max-width: 65px; max-height: 65px; }
+    .encabezado .datos-col .nombre-service {
+        font-size: 17px;
+        font-weight: bold;
+        color: #1f6b3e;
+    }
+    .encabezado .datos-col .linea-dato { font-size: 10.5px; color: #444; }
+    .encabezado .titulo-col { text-align: right; width: 190px; }
+    .encabezado .titulo-col .titulo {
+        font-size: 15px;
+        font-weight: bold;
+        color: #1f6b3e;
+        letter-spacing: 0.5px;
+    }
+    .encabezado .titulo-col .numero {
+        font-size: 22px;
+        font-weight: bold;
+        color: #c0392b;
+    }
+    .encabezado .titulo-col .fecha { font-size: 11px; color: #444; margin-top: 4px; }
+
+    .seccion { margin-bottom: 12px; }
+    .seccion .titulo-seccion {
+        background: #1f6b3e;
+        color: #ffffff;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-radius: 2px 2px 0 0;
+    }
+    .caja {
+        border: 1px solid #c9ccd3;
+        border-top: none;
+        padding: 8px 10px;
+        border-radius: 0 0 2px 2px;
+    }
+    .fila { display: table; width: 100%; margin-bottom: 4px; }
+    .fila .campo { display: table-cell; padding-right: 10px; vertical-align: top; }
+    .etiqueta { font-weight: bold; color: #1f6b3e; margin-right: 4px; }
+    .texto-largo { min-height: 28px; }
+
+    .importe-destacado {
+        margin-top: 10px;
+        text-align: right;
+        font-size: 20px;
+        font-weight: bold;
+        color: #1f6b3e;
+    }
+    .importe-destacado .etiqueta-importe {
+        font-size: 12px;
+        color: #444;
+        font-weight: normal;
+        margin-right: 8px;
+    }
+
+    .referencia-boleto {
+        font-size: 10.5px;
+        color: #666;
+        margin-bottom: 10px;
+    }
+
+    .firma { margin-top: 30px; display: table; width: 100%; }
+    .firma .col { display: table-cell; width: 50%; text-align: center; }
+    .firma .linea { margin: 30px 20px 4px 20px; border-top: 1px solid #444; }
+
+    .pie {
+        margin-top: 18px;
+        font-size: 9px;
+        color: #888;
+        text-align: center;
+        border-top: 1px dashed #c9ccd3;
+        padding-top: 6px;
+    }
+
+    .aviso-blanco {
+        text-align: center;
+        font-size: 10px;
+        color: #999;
+        font-style: italic;
+        margin-bottom: 8px;
+    }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+    <div class="encabezado">
+        <div class="logo-col">
+            {% if service.logo_path %}
+            <img src="{{ service.logo_path }}" alt="Logo">
+            {% endif %}
+        </div>
+        <div class="datos-col">
+            <div class="nombre-service">{{ service.nombre }}</div>
+            {% if service.cuit %}<div class="linea-dato">CUIT: {{ service.cuit }}</div>{% endif %}
+            {% if service.direccion or service.localidad %}
+            <div class="linea-dato">{{ service.direccion }}{% if service.localidad %}, {{ service.localidad }}{% endif %}{% if service.codigo_postal %} (CP {{ service.codigo_postal }}){% endif %}</div>
+            {% endif %}
+            {% if service.telefono or service.email %}
+            <div class="linea-dato">{% if service.telefono %}Tel: {{ service.telefono }}{% endif %}{% if service.telefono and service.email %} · {% endif %}{% if service.email %}{{ service.email }}{% endif %}</div>
+            {% endif %}
+        </div>
+        <div class="titulo-col">
+            <div class="titulo">RECIBO</div>
+            <div class="numero">N.º {{ recibo.numero | blanco(4) }}</div>
+            <div class="fecha">Fecha: {{ recibo.fecha | blanco(10) }}</div>
+        </div>
+    </div>
+
+    {% if blanco %}
+    <div class="aviso-blanco">Documento en blanco para completar manualmente — no posee numeración asignada</div>
+    {% endif %}
+
+    {% if recibo.boleto_id %}
+    <div class="referencia-boleto">Referencia: Boleto de recepción N.º {{ recibo.boleto_id }}</div>
+    {% endif %}
+
+    <div class="seccion">
+        <div class="titulo-seccion">Datos del cliente</div>
+        <div class="caja">
+            <div class="fila">
+                <div class="campo" style="width: 60%;"><span class="etiqueta">Nombre:</span>{{ cliente.nombre | blanco(30) }}</div>
+                <div class="campo" style="width: 40%;"><span class="etiqueta">DNI/CUIT:</span>{{ cliente.dni_cuit | blanco(15) }}</div>
+            </div>
+            <div class="fila">
+                <div class="campo" style="width: 40%;"><span class="etiqueta">Teléfono:</span>{{ cliente.telefono | blanco(15) }}</div>
+                <div class="campo" style="width: 60%;"><span class="etiqueta">Dirección:</span>{{ cliente.direccion | blanco(30) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="seccion">
+        <div class="titulo-seccion">Trabajo realizado</div>
+        <div class="caja">
+            <div class="fila"><div class="campo"><span class="etiqueta">Resumen:</span>{{ recibo.trabajo | blanco(50) }}</div></div>
+            <div class="fila"><div class="campo texto-largo"><span class="etiqueta">Descripción detallada:</span><br>{{ recibo.descripcion | blanco(90) }}</div></div>
+        </div>
+    </div>
+
+    <div class="seccion">
+        <div class="titulo-seccion">Observaciones</div>
+        <div class="caja">
+            <div class="fila"><div class="campo texto-largo">{{ recibo.observaciones | blanco(80) }}</div></div>
+        </div>
+    </div>
+
+    <div class="fila" style="margin-top: 8px;">
+        <div class="campo" style="width: 60%;"><span class="etiqueta">Forma de pago:</span>{{ recibo.forma_pago | blanco(20) }}</div>
+    </div>
+
+    <div class="importe-destacado">
+        <span class="etiqueta-importe">Importe total:</span>$ {{ recibo.importe | blanco(10) }}
+    </div>
+
+    <div class="firma">
+        <div class="col">
+            <div class="linea"></div>
+            Firma del cliente
+        </div>
+        <div class="col">
+            <div class="linea"></div>
+            Firma (service técnico)
+        </div>
+    </div>
+
+    <div class="pie">
+        Gracias por confiar en {{ service.nombre }}.
+        {% if service.telefono %} — Consultas: {{ service.telefono }}{% endif %}
+    </div>
+
+</div>
+</body>
+</html>

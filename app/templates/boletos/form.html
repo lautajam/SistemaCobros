@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block titulo %}{{ "Editar boleto" if boleto else "Nuevo boleto" }}{% endblock %}
+{% block contenido %}
+{% if boleto %}
+<a class="enlace-volver" href="{{ url_for('boletos.detalle', boleto_id=boleto.id) }}">&larr; Volver al boleto</a>
+{% else %}
+<a class="enlace-volver" href="{{ url_for('main.index') }}">&larr; Volver al inicio</a>
+{% endif %}
+
+<h1>{{ "Editar boleto N.º " + boleto.numero if boleto else "Nuevo boleto de recepción" }}</h1>
+
+{% if error %}<div class="alerta-error">{{ error }}</div>{% endif %}
+
+<form class="formulario" method="post">
+    {% if boleto %}
+        <div class="grupo-campo">
+            <label>Cliente</label>
+            <div class="cliente-seleccionado" style="display:block;">
+                <strong>{{ cliente_prefill.nombre }}</strong>
+                {% if cliente_prefill.telefono %} · {{ cliente_prefill.telefono }}{% endif %}
+            </div>
+        </div>
+    {% else %}
+        {% include "clientes/_buscador.html" %}
+    {% endif %}
+
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Fecha de recepción</label>
+            <input type="date" name="fecha" value="{{ boleto.fecha if boleto else fecha_hoy|default('') }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Hora de recepción</label>
+            <input type="time" name="hora" value="{{ boleto.hora if boleto else '' }}">
+        </div>
+    </div>
+
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Tipo de equipo</label>
+            <input type="text" name="equipo" placeholder="PC / Notebook / Impresora..." value="{{ boleto.equipo if boleto else '' }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Marca</label>
+            <input type="text" name="marca" value="{{ boleto.marca if boleto else '' }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Modelo</label>
+            <input type="text" name="modelo" value="{{ boleto.modelo if boleto else '' }}">
+        </div>
+    </div>
+
+    <div class="grupo-campo">
+        <label>Número de serie</label>
+        <input type="text" name="numero_serie" value="{{ boleto.numero_serie if boleto else '' }}">
+    </div>
+
+    <div class="grupo-campo">
+        <label>Especificaciones</label>
+        <textarea name="especificaciones" placeholder="RAM, disco, procesador, etc.">{{ boleto.especificaciones if boleto else '' }}</textarea>
+    </div>
+
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Accesorios entregados</label>
+            <textarea name="accesorios" placeholder="Cargador, mouse, funda...">{{ boleto.accesorios if boleto else '' }}</textarea>
+        </div>
+        <div class="grupo-campo">
+            <label>Estado físico</label>
+            <textarea name="estado_fisico" placeholder="Rayones, golpes, faltantes...">{{ boleto.estado_fisico if boleto else '' }}</textarea>
+        </div>
+    </div>
+
+    <div class="grupo-campo">
+        <label>Problema / falla informada por el cliente</label>
+        <textarea name="problema">{{ boleto.problema if boleto else '' }}</textarea>
+    </div>
+
+    <div class="grupo-campo">
+        <label>Observaciones</label>
+        <textarea name="observaciones">{{ boleto.observaciones if boleto else '' }}</textarea>
+    </div>
+
+    <div class="acciones-form">
+        <button class="boton" type="submit">
+            {{ "Guardar cambios" if boleto else "Guardar y generar PDF" }}
+        </button>
+        {% if boleto %}
+        <a class="boton secundario" href="{{ url_for('boletos.detalle', boleto_id=boleto.id) }}">Cancelar</a>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/clientes.js') }}"></script>
+{% endblock %}

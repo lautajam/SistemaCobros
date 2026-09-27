@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block titulo %}Historial{% endblock %}
+{% block contenido %}
+<h1>Historial</h1>
+
+<div class="pestanas">
+    <a class="{{ 'activa' if tab == 'boletos' }}" href="{{ url_for('historial.index', tab='boletos') }}">Boletos</a>
+    <a class="{{ 'activa' if tab == 'recibos' }}" href="{{ url_for('historial.index', tab='recibos') }}">Recibos</a>
+</div>
+
+<form class="barra-busqueda" method="get">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <input type="text" name="q" placeholder="{{ 'Buscar por número, cliente, equipo, marca, modelo o N.º de serie' if tab == 'boletos' else 'Buscar por número, cliente, forma de pago o importe' }}" value="{{ q }}" style="min-width:340px;">
+    <input type="date" name="fecha" value="{{ fecha }}">
+    <button class="boton secundario" type="submit">Filtrar</button>
+    {% if q or fecha %}<a class="boton secundario" href="{{ url_for('historial.index', tab=tab) }}">Limpiar</a>{% endif %}
+</form>
+
+{% if registros %}
+<table class="tabla">
+    <thead>
+    {% if tab == 'boletos' %}
+        <tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Marca/Modelo</th><th>N.º serie</th><th></th></tr>
+    {% else %}
+        <tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Forma de pago</th><th>Importe</th><th></th></tr>
+    {% endif %}
+    </thead>
+    <tbody>
+        {% for reg in registros %}
+        <tr>
+            <td>{{ reg.numero }}</td>
+            <td>{{ reg.fecha }}</td>
+            <td>{{ reg.cliente_nombre }}</td>
+            {% if tab == 'boletos' %}
+                <td>{{ reg.equipo }}</td>
+                <td>{{ reg.marca }} {{ reg.modelo }}</td>
+                <td>{{ reg.numero_serie }}</td>
+                <td class="acciones">
+                    <a class="boton chico" href="{{ url_for('boletos.detalle', boleto_id=reg.id) }}">Ver</a>
+                    <a class="boton chico secundario" href="{{ url_for('boletos.pdf', boleto_id=reg.id) }}" target="_blank">PDF</a>
+                </td>
+            {% else %}
+                <td>{{ reg.forma_pago }}</td>
+                <td>$ {{ reg.importe }}</td>
+                <td class="acciones">
+                    <a class="boton chico" href="{{ url_for('recibos.detalle', recibo_id=reg.id) }}">Ver</a>
+                    <a class="boton chico secundario" href="{{ url_for('recibos.pdf', recibo_id=reg.id) }}" target="_blank">PDF</a>
+                </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="vacio">No hay registros que coincidan con la búsqueda.</div>
+{% endif %}
+{% endblock %}

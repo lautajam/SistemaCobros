@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block titulo %}Service Técnico{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <a class="marca" href="{{ url_for('main.index') }}">🖥️ {{ service_cfg.nombre }}</a>
+    <nav>
+        <a href="{{ url_for('boletos.nuevo') }}">Nuevo boleto</a>
+        <a href="{{ url_for('recibos.nuevo') }}">Nuevo recibo</a>
+        <a href="{{ url_for('clientes.lista') }}">Clientes</a>
+        <a href="{{ url_for('historial.index') }}">Historial</a>
+        <a href="{{ url_for('configuracion.form') }}">Configuración</a>
+    </nav>
+</header>
+
+<main class="contenido">
+    {% with mensajes = get_flashed_messages() %}
+        {% if mensajes %}
+            <div class="flash">
+                {% for m in mensajes %}
+                    <p style="white-space: pre-wrap; margin: 0 0 8px 0;">{{ m }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    {% block contenido %}{% endblock %}
+</main>
+
+<footer class="piepagina">
+    Último boleto: <strong>{{ "%04d"|format(ultimo_boleto) }}</strong>
+    &nbsp;·&nbsp;
+    Último recibo: <strong>{{ "%04d"|format(ultimo_recibo) }}</strong>
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

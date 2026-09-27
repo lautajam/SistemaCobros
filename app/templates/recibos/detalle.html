@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block titulo %}Recibo N.º {{ recibo.numero }}{% endblock %}
+{% block contenido %}
+<a class="enlace-volver" href="{{ url_for('historial.index', tab='recibos') }}">&larr; Volver al historial</a>
+
+<div class="ficha">
+    <h1 style="margin-bottom:2px;">Recibo N.º {{ recibo.numero }}</h1>
+    <p class="subtitulo" style="margin-top:2px;">
+        Cliente:
+        {% if cliente %}
+        <a href="{{ url_for('clientes.detalle', cliente_id=cliente.id) }}">{{ cliente.nombre }}</a>
+        {% else %}(cliente no encontrado){% endif %}
+        {% if boleto %}
+        &nbsp;·&nbsp; Boleto asociado:
+        <a href="{{ url_for('boletos.detalle', boleto_id=boleto.id) }}">N.º {{ boleto.numero }}</a>
+        {% endif %}
+    </p>
+    <dl>
+        <div><dt>Fecha</dt><dd>{{ recibo.fecha }}</dd></div>
+        <div><dt>Trabajo</dt><dd>{{ recibo.trabajo or "-" }}</dd></div>
+        <div><dt>Importe</dt><dd>$ {{ recibo.importe or "0" }}</dd></div>
+        <div><dt>Forma de pago</dt><dd>{{ recibo.forma_pago or "-" }}</dd></div>
+    </dl>
+    {% if recibo.descripcion %}
+    <div style="margin-top:12px;">
+        <dt style="font-size:12px;color:#888;text-transform:uppercase;">Descripción</dt>
+        <p>{{ recibo.descripcion }}</p>
+    </div>
+    {% endif %}
+    {% if recibo.observaciones %}
+    <div>
+        <dt style="font-size:12px;color:#888;text-transform:uppercase;">Observaciones</dt>
+        <p>{{ recibo.observaciones }}</p>
+    </div>
+    {% endif %}
+
+    <div class="acciones-form">
+        <a class="boton verde" href="{{ url_for('recibos.pdf', recibo_id=recibo.id) }}" target="_blank">Ver / Imprimir PDF</a>
+        <a class="boton secundario" href="{{ url_for('recibos.editar', recibo_id=recibo.id) }}">Editar</a>
+        <form method="post" action="{{ url_for('recibos.eliminar', recibo_id=recibo.id) }}"
+              onsubmit="return confirm('¿Eliminar este recibo? El número {{ recibo.numero }} no se reutilizará.');" style="display:inline;">
+            <button class="boton rojo" type="submit">Eliminar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

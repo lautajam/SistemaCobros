@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block titulo %}Configuración{% endblock %}
+{% block contenido %}
+<h1>Configuración del service</h1>
+<p class="subtitulo">Estos datos aparecen automáticamente en los boletos y recibos generados.</p>
+
+<form class="formulario" method="post" enctype="multipart/form-data">
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Nombre / nombre comercial</label>
+            <input type="text" name="nombre" value="{{ cfg.nombre }}">
+        </div>
+        <div class="grupo-campo">
+            <label>CUIT</label>
+            <input type="text" name="cuit" value="{{ cfg.cuit }}">
+        </div>
+    </div>
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Teléfono</label>
+            <input type="text" name="telefono" value="{{ cfg.telefono }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Email</label>
+            <input type="email" name="email" value="{{ cfg.email }}">
+        </div>
+    </div>
+    <div class="fila-campos">
+        <div class="grupo-campo">
+            <label>Dirección</label>
+            <input type="text" name="direccion" value="{{ cfg.direccion }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Localidad</label>
+            <input type="text" name="localidad" value="{{ cfg.localidad }}">
+        </div>
+        <div class="grupo-campo">
+            <label>Código postal</label>
+            <input type="text" name="codigo_postal" value="{{ cfg.codigo_postal }}">
+        </div>
+    </div>
+    <div class="grupo-campo">
+        <label>Logo (PNG/JPG/GIF)</label>
+        <input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.gif">
+        {% if cfg.logo %}
+        <img class="logo-actual" src="{{ url_for('configuracion.logo') }}" alt="Logo actual">
+        {% endif %}
+    </div>
+    <div class="acciones-form">
+        <button class="boton" type="submit">Guardar configuración</button>
+    </div>
+</form>
+{% endblock %}
