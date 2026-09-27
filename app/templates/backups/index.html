@@ -1,37 +1,41 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon, archivo %}
 {% block titulo %}Backups{% endblock %}
 {% block contenido %}
-<h1>Backups</h1>
-<p class="subtitulo">
-    Un backup guarda <strong>todo</strong>: clientes, boletos, recibos, configuración, logo y los PDF generados.
-    Los backups son manuales: se hacen solo cuando vos lo pedís.
-</p>
-
-<h2>Crear backup</h2>
-<p class="subtitulo">
-    Se crea el backup y se descarga a tu PC como un archivo .zip.
-    Si tu navegador no te pregunta dónde guardarlo, se guarda en su carpeta de descargas
-    (podés activar "Preguntar dónde guardar cada archivo" en la configuración de descargas del navegador).
-</p>
-<form id="form-crear" method="post" action="{{ url_for('backups.crear') }}" onsubmit="return iniciarBackup(this);">
-    <input type="hidden" name="marca" value="">
-    <button class="boton verde" type="submit" id="btn-crear">Crear backup</button>
-</form>
-
-<h2 style="margin-top:32px;">Restaurar desde un archivo</h2>
-<p class="subtitulo">
-    Elegí un backup (.zip) guardado en tu PC. <strong>Se reemplazan todos los datos actuales</strong> por los del backup.
-    Si querés poder volver atrás, creá antes un backup de lo actual.
-</p>
-<form class="formulario" method="post" action="{{ url_for('backups.subir') }}" enctype="multipart/form-data">
-    <div class="grupo-campo">
-        <label>Archivo de backup (.zip)</label>
-        <input type="file" name="archivo" accept=".zip" required>
+<div class="page-head">
+    <div class="titulo">
+        <h1>Backups</h1>
+        <p class="sub">Copia de todo: clientes, boletos, recibos, logo y PDF.</p>
     </div>
-    <div class="acciones-form">
-        <button class="boton rojo" type="submit">Subir y restaurar</button>
-    </div>
-</form>
+</div>
+
+<div class="backup-grid">
+    <section class="card card-pad backup-card">
+        <span class="icono-caja">{{ icon("download", "icon-lg") }}</span>
+        <div>
+            <h2>Crear backup</h2>
+            <p class="muted">Se descarga un archivo .zip a tu PC. Si tu navegador pregunta dónde guardarlo, elegí la carpeta.</p>
+        </div>
+        <form id="form-crear" method="post" action="{{ url_for('backups.crear') }}" onsubmit="return iniciarBackup(this);">
+            <input type="hidden" name="marca" value="">
+            <button class="btn btn-block" type="submit" id="btn-crear">{{ icon("download") }} <span data-texto>Crear backup</span></button>
+        </form>
+    </section>
+
+    <section class="card card-pad backup-card peligro">
+        <span class="icono-caja">{{ icon("upload", "icon-lg") }}</span>
+        <div>
+            <h2>Restaurar backup</h2>
+            <p class="muted">Elegí un .zip. <strong>Reemplaza todos los datos actuales.</strong> Si querés poder volver atrás, creá un backup antes.</p>
+        </div>
+        <form method="post" action="{{ url_for('backups.subir') }}" enctype="multipart/form-data" class="stack" style="gap:12px"
+              data-confirm="Se reemplazan todos los datos actuales por los del backup."
+              data-confirm-titulo="¿Restaurar este backup?" data-confirm-boton="Restaurar">
+            {{ archivo("archivo", ".zip", requerido=True, etiqueta="Elegir backup (.zip)") }}
+            <button class="btn btn-danger btn-block" type="submit">{{ icon("upload") }} Subir y restaurar</button>
+        </form>
+    </section>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -43,16 +47,17 @@ function iniciarBackup(form) {
     var marca = String(Date.now());
     form.marca.value = marca;
     var boton = document.getElementById("btn-crear");
-    var textoOriginal = boton.textContent;
+    var texto = boton.querySelector("[data-texto]");
+    var textoOriginal = texto.textContent;
     boton.disabled = true;
-    boton.textContent = "Creando backup...";
+    texto.textContent = "Creando backup…";
 
     var restaurar = function () {
         clearInterval(espera);
         clearTimeout(limite);
         document.cookie = "backup_listo=; Max-Age=0; path=/backups";
         boton.disabled = false;
-        boton.textContent = textoOriginal;
+        texto.textContent = textoOriginal;
     };
     var espera = setInterval(function () {
         if (document.cookie.indexOf("backup_listo=" + marca) !== -1) { restaurar(); }

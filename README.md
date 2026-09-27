@@ -14,7 +14,7 @@ PC (fuera de Docker) y se pueden volver a cargar desde la propia app.
 
 - **Backend:** Python + [Flask](https://flask.palletsprojects.com/), servido con Gunicorn.
 - **Base de datos:** PostgreSQL 16, con [SQLAlchemy](https://www.sqlalchemy.org/) 2 y migraciones con [Alembic](https://alembic.sqlalchemy.org/) (el esquema se crea y actualiza solo al arrancar).
-- **Interfaz:** HTML renderizado por Flask (Jinja2) + CSS simple + un poco de JavaScript "vanilla" para la búsqueda de clientes en vivo.
+- **Interfaz:** HTML renderizado por Flask (Jinja2) + **CSS propio** (sistema de diseño responsive, sin frameworks ni compilación) + JavaScript "vanilla". Funciona sin internet.
 - **Plantillas de documentos:** HTML + Jinja2, totalmente separadas del código y editables.
 - **HTML → PDF:** `pdfkit` + `wkhtmltopdf` (ya instalado dentro de la imagen Docker).
 - **Backups:** `pg_dump` / `pg_restore` (cliente de PostgreSQL 16, también dentro de la imagen).
@@ -60,8 +60,10 @@ service-app/
 │   │   ├── configuracion.py   # Datos del service + logo
 │   │   ├── blancos.py         # Boletos/recibos en blanco
 │   │   └── backups.py         # Pantalla de backups: crear (descarga) y restaurar (subir un .zip)
-│   ├── templates/             # Plantillas HTML de la INTERFAZ
-│   └── static/                # CSS y JS de la interfaz
+│   ├── templates/             # Plantillas HTML de la INTERFAZ (base.html, _macros.html, _sprite.html + una carpeta por sección)
+│   └── static/
+│       ├── css/style.css      # Sistema de diseño: variables, componentes, responsive, modo oscuro
+│       └── js/                # app.js (menú, avisos, confirmaciones) y clientes.js (buscador de clientes)
 │
 ├── migrations/                # Migraciones de Alembic (esquema de la base)
 │
@@ -109,6 +111,18 @@ Son **independientes del código**: se pueden editar con cualquier editor de tex
 
    El nombre del cliente se normaliza (sin tildes, espacios ni caracteres especiales) solo para el nombre de archivo.
 5. Los documentos en blanco usan un nombre fijo (`boleto_recepcion_en_blanco.pdf` / `recibo_en_blanco.pdf`) con sufijo (`_1`, `_2`, ...) si ya existe. No consumen numeración.
+
+### Interfaz (front-end)
+
+Hecha con **CSS propio**, sin frameworks, sin compilar y sin internet. Se adapta a celular, tablet y PC (*mobile-first*).
+
+- **Responsive:** en el celular el menú es una hamburguesa y las tablas se convierten en tarjetas; desde 900 px de ancho aparece la barra de navegación completa. En los formularios del celular, la barra de "Guardar" queda fija abajo.
+- **Modo oscuro automático:** sigue la configuración del sistema (`prefers-color-scheme`). Todos los colores están definidos como variables al inicio de `static/css/style.css` (para cambiar la paleta, se editan ahí).
+- **Íconos:** SVG incluidos en `templates/_sprite.html`; se usan con `{{ icon("nombre") }}` (macro de `templates/_macros.html`, que también trae `campo`, `area`, `dato` y `archivo` para armar formularios y fichas).
+- **Confirmaciones:** los formularios con `data-confirm="mensaje"` (eliminar, restaurar backup) abren un cuadro propio `<dialog>`. No se usan `confirm()`, `prompt()` ni `alert()`: algunos navegadores embebidos (como el integrado de VS Code) no los soportan.
+- **Avisos:** los mensajes de Flask (`flash(mensaje, "success" | "error" | "warning")`) se muestran como avisos que se cierran solos.
+- **Accesibilidad:** contrastes AA en modo claro y oscuro, foco visible, navegación por teclado en el buscador de clientes y enlace "Ir al contenido".
+- Probado en Brave, Edge y un Electron real (como el navegador de VS Code), en 375 px, 768 px y 1366 px de ancho.
 
 ### Flujo de navegación
 

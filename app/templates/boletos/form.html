@@ -1,96 +1,70 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon, campo, area %}
 {% block titulo %}{{ "Editar boleto" if boleto else "Nuevo boleto" }}{% endblock %}
 {% block contenido %}
-{% if boleto %}
-<a class="enlace-volver" href="{{ url_for('boletos.detalle', boleto_id=boleto.id) }}">&larr; Volver al boleto</a>
-{% else %}
-<a class="enlace-volver" href="{{ url_for('main.index') }}">&larr; Volver al inicio</a>
-{% endif %}
+<a class="back-link" href="{{ url_for('boletos.detalle', boleto_id=boleto.id) if boleto else url_for('main.index') }}">{{ icon("arrow-left") }} Volver</a>
+<div class="page-head">
+    <h1>{{ "Editar boleto N.º " ~ boleto.numero if boleto else "Nuevo boleto" }}</h1>
+</div>
 
-<h1>{{ "Editar boleto N.º " + boleto.numero if boleto else "Nuevo boleto de recepción" }}</h1>
+{% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} {{ error }}</div>{% endif %}
 
-{% if error %}<div class="alerta-error">{{ error }}</div>{% endif %}
-
-<form class="formulario" method="post">
-    {% if boleto %}
-        <div class="grupo-campo">
-            <label>Cliente</label>
-            <div class="cliente-seleccionado" style="display:block;">
-                <strong>{{ cliente_prefill.nombre }}</strong>
-                {% if cliente_prefill.telefono %} · {{ cliente_prefill.telefono }}{% endif %}
-            </div>
-        </div>
-    {% else %}
-        {% include "clientes/_buscador.html" %}
-    {% endif %}
-
-    <div class="fila-campos">
-        <div class="grupo-campo">
-            <label>Fecha de recepción</label>
-            <input type="date" name="fecha" value="{{ boleto.fecha if boleto else fecha_hoy|default('') }}">
-        </div>
-        <div class="grupo-campo">
-            <label>Hora de recepción</label>
-            <input type="time" name="hora" value="{{ boleto.hora if boleto else '' }}">
-        </div>
-    </div>
-
-    <div class="fila-campos">
-        <div class="grupo-campo">
-            <label>Tipo de equipo</label>
-            <input type="text" name="equipo" placeholder="PC / Notebook / Impresora..." value="{{ boleto.equipo if boleto else '' }}">
-        </div>
-        <div class="grupo-campo">
-            <label>Marca</label>
-            <input type="text" name="marca" value="{{ boleto.marca if boleto else '' }}">
-        </div>
-        <div class="grupo-campo">
-            <label>Modelo</label>
-            <input type="text" name="modelo" value="{{ boleto.modelo if boleto else '' }}">
-        </div>
-    </div>
-
-    <div class="grupo-campo">
-        <label>Número de serie</label>
-        <input type="text" name="numero_serie" value="{{ boleto.numero_serie if boleto else '' }}">
-    </div>
-
-    <div class="grupo-campo">
-        <label>Especificaciones</label>
-        <textarea name="especificaciones" placeholder="RAM, disco, procesador, etc.">{{ boleto.especificaciones if boleto else '' }}</textarea>
-    </div>
-
-    <div class="fila-campos">
-        <div class="grupo-campo">
-            <label>Accesorios entregados</label>
-            <textarea name="accesorios" placeholder="Cargador, mouse, funda...">{{ boleto.accesorios if boleto else '' }}</textarea>
-        </div>
-        <div class="grupo-campo">
-            <label>Estado físico</label>
-            <textarea name="estado_fisico" placeholder="Rayones, golpes, faltantes...">{{ boleto.estado_fisico if boleto else '' }}</textarea>
-        </div>
-    </div>
-
-    <div class="grupo-campo">
-        <label>Problema / falla informada por el cliente</label>
-        <textarea name="problema">{{ boleto.problema if boleto else '' }}</textarea>
-    </div>
-
-    <div class="grupo-campo">
-        <label>Observaciones</label>
-        <textarea name="observaciones">{{ boleto.observaciones if boleto else '' }}</textarea>
-    </div>
-
-    <div class="acciones-form">
-        <button class="boton" type="submit">
-            {{ "Guardar cambios" if boleto else "Guardar y generar PDF" }}
-        </button>
+<form class="card card-pad" method="post" data-lock>
+    <div class="form-section">
+        <h2>{{ icon("user") }} Cliente</h2>
         {% if boleto %}
-        <a class="boton secundario" href="{{ url_for('boletos.detalle', boleto_id=boleto.id) }}">Cancelar</a>
+        <div class="cliente-seleccionado">
+            <span class="avatar">{{ cliente_prefill.nombre[:1]|upper }}</span>
+            <span class="datos"><strong>{{ cliente_prefill.nombre }}</strong>{% if cliente_prefill.telefono %}<small>{{ cliente_prefill.telefono }}</small>{% endif %}</span>
+        </div>
+        {% else %}
+        {% include "clientes/_buscador.html" %}
         {% endif %}
+    </div>
+
+    <div class="form-section">
+        <h2>{{ icon("clock") }} Recepción</h2>
+        <div class="form-grid cols-2">
+            {{ campo("Fecha", "fecha", boleto.fecha if boleto else fecha_hoy|default(""), tipo="date") }}
+            {{ campo("Hora", "hora", boleto.hora if boleto else "", tipo="time") }}
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h2>{{ icon("monitor") }} Equipo</h2>
+        <div class="form-grid cols-3">
+            {{ campo("Tipo", "equipo", boleto.equipo if boleto else "", placeholder="Notebook, PC, impresora…", extra='list="tipos-equipo" autocomplete="off"') }}
+            {{ campo("Marca", "marca", boleto.marca if boleto else "") }}
+            {{ campo("Modelo", "modelo", boleto.modelo if boleto else "") }}
+        </div>
+        <datalist id="tipos-equipo">
+            <option value="PC"><option value="Notebook"><option value="All in one"><option value="Impresora">
+            <option value="Monitor"><option value="Celular"><option value="Tablet"><option value="Consola">
+        </datalist>
+        <div class="form-grid" style="margin-top:14px">
+            {{ campo("N.º de serie", "numero_serie", boleto.numero_serie if boleto else "") }}
+            {{ area("Problema informado", "problema", boleto.problema if boleto else "", placeholder="¿Qué falla tiene?") }}
+        </div>
+    </div>
+
+    <details class="mas" {% if boleto and (boleto.especificaciones or boleto.accesorios or boleto.estado_fisico or boleto.observaciones) %}open{% endif %}>
+        <summary>{{ icon("chevron-right") }} Más detalles (opcional)</summary>
+        <div class="contenido-mas">
+            {{ area("Especificaciones", "especificaciones", boleto.especificaciones if boleto else "", placeholder="RAM, disco, procesador…") }}
+            <div class="form-grid cols-2">
+                {{ area("Accesorios entregados", "accesorios", boleto.accesorios if boleto else "", placeholder="Cargador, mouse, funda…") }}
+                {{ area("Estado físico", "estado_fisico", boleto.estado_fisico if boleto else "", placeholder="Rayones, golpes, faltantes…") }}
+            </div>
+            {{ area("Observaciones", "observaciones", boleto.observaciones if boleto else "") }}
+        </div>
+    </details>
+
+    <div class="form-actions">
+        <button class="btn" type="submit">{{ icon("check") }} {{ "Guardar cambios" if boleto else "Guardar y generar PDF" }}</button>
+        {% if boleto %}<a class="btn btn-secondary" href="{{ url_for('boletos.detalle', boleto_id=boleto.id) }}">Cancelar</a>{% endif %}
     </div>
 </form>
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/clientes.js') }}"></script>
+{% if not boleto %}<script src="{{ url_for('static', filename='js/clientes.js', v=asset_v) }}" defer></script>{% endif %}
 {% endblock %}

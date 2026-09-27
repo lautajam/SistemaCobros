@@ -30,7 +30,7 @@ def nuevo():
         cliente = _get_cliente(cliente_id)
         if not cliente:
             return render_template(
-                "recibos/form.html", recibo=None, boleto=boleto,
+                "recibos/form.html", recibo=None, boleto=boleto, fecha_hoy=date.today().isoformat(),
                 error="Debe seleccionar (o crear) un cliente antes de guardar.",
             ), 400
 
@@ -50,11 +50,14 @@ def nuevo():
         try:
             documentos.generar_pdf_recibo(recibo, cliente)
         except RuntimeError as e:
-            flash(f"El recibo N.º {recibo['numero']} se guardó correctamente, pero no se pudo generar el PDF: {e}")
+            flash(f"El recibo N.º {recibo['numero']} se guardó correctamente, pero no se pudo generar el PDF: {e}", "warning")
         return redirect(url_for("recibos.detalle", recibo_id=recibo["id"]))
 
     cliente_prefill = _get_cliente(boleto["cliente_id"]) if boleto else None
-    return render_template("recibos/form.html", recibo=None, boleto=boleto, cliente_prefill=cliente_prefill)
+    return render_template(
+        "recibos/form.html", recibo=None, boleto=boleto, cliente_prefill=cliente_prefill,
+        fecha_hoy=date.today().isoformat(),
+    )
 
 
 @bp.route("/<recibo_id>")
@@ -92,7 +95,7 @@ def pdf(recibo_id):
     try:
         ruta = documentos.generar_pdf_recibo(recibo, cliente)
     except RuntimeError as e:
-        flash(str(e))
+        flash(str(e), "error")
         return redirect(url_for("recibos.detalle", recibo_id=recibo_id))
     return send_file(ruta, as_attachment=False)
 

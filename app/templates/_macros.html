@@ -1,0 +1,38 @@
+{# Ícono SVG del sprite (_sprite.html). Uso: {{ icon("home") }} o {{ icon("plus", "icon-lg") }} #}
+{% macro icon(nombre, clase="") -%}
+<svg class="icon {{ clase }}" aria-hidden="true" focusable="false"><use href="#i-{{ nombre }}"/></svg>
+{%- endmacro %}
+
+{# Campo de formulario con etiqueta. Uso: {{ campo("Nombre", "nombre", valor, requerido=True) }} #}
+{% macro campo(etiqueta, nombre, valor="", tipo="text", requerido=False, placeholder="", extra="") -%}
+<div class="field">
+    <label for="f-{{ nombre }}">{{ etiqueta }}{% if requerido %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+    <input id="f-{{ nombre }}" type="{{ tipo }}" name="{{ nombre }}" value="{{ valor }}"
+           {% if requerido %}required{% endif %} {% if placeholder %}placeholder="{{ placeholder }}"{% endif %} {{ extra|safe }}>
+</div>
+{%- endmacro %}
+
+{# Área de texto. Uso: {{ area("Observaciones", "observaciones", valor) }} #}
+{% macro area(etiqueta, nombre, valor="", placeholder="") -%}
+<div class="field">
+    <label for="f-{{ nombre }}">{{ etiqueta }}</label>
+    <textarea id="f-{{ nombre }}" name="{{ nombre }}" {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}>{{ valor }}</textarea>
+</div>
+{%- endmacro %}
+
+{# Dato de una ficha (dt/dd). Si está vacío muestra un guion. #}
+{% macro dato(etiqueta, valor, ancho=False) -%}
+<div{% if ancho %} class="ancho"{% endif %}>
+    <dt>{{ etiqueta }}</dt>
+    <dd>{% if valor %}{{ valor }}{% else %}<span class="vacio-dato">—</span>{% endif %}</dd>
+</div>
+{%- endmacro %}
+
+{# Selector de archivo con textos en español. Uso: {{ archivo("archivo", ".zip", requerido=True) }} #}
+{% macro archivo(nombre, aceptar, requerido=False, etiqueta="Elegir archivo…") -%}
+<label class="file-picker">
+    <input type="file" name="{{ nombre }}" accept="{{ aceptar }}" {% if requerido %}required{% endif %} data-file-input>
+    <span class="btn btn-secondary btn-sm">{{ icon("upload") }} {{ etiqueta }}</span>
+    <span class="file-name muted" data-file-name>Ningún archivo elegido</span>
+</label>
+{%- endmacro %}

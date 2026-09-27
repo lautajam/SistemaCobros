@@ -1,35 +1,33 @@
 {% extends "base.html" %}
-{% block titulo %}Inicio - Service Técnico{% endblock %}
+{% from "_macros.html" import icon %}
+{% block titulo %}Inicio{% endblock %}
 {% block contenido %}
-<h1>Service de Computación</h1>
-<p class="subtitulo">Elegí una acción para empezar.</p>
+<div class="page-head">
+    <h1>Inicio</h1>
+</div>
 
-<div class="tarjetas-inicio">
-    <a class="tarjeta-boton" href="{{ url_for('boletos.nuevo') }}">
-        <span class="icono">🧾</span> Nuevo boleto
+<div class="acciones-principales">
+    <a class="accion-grande" href="{{ url_for('boletos.nuevo') }}">
+        <span class="icono-caja">{{ icon("file-plus", "icon-lg") }}</span>
+        <span><strong>Nuevo boleto</strong><small>Ingreso de un equipo</small></span>
     </a>
-    <a class="tarjeta-boton secundaria" href="{{ url_for('recibos.nuevo') }}">
-        <span class="icono">💵</span> Nuevo recibo
-    </a>
-    <a class="tarjeta-boton" href="{{ url_for('clientes.lista') }}">
-        <span class="icono">👤</span> Clientes
-    </a>
-    <a class="tarjeta-boton" href="{{ url_for('historial.index') }}">
-        <span class="icono">🗂️</span> Historial
-    </a>
-    <a class="tarjeta-boton terciaria" href="{{ url_for('blancos.boleto') }}">
-        <span class="icono">📄</span> Boleto en blanco
-    </a>
-    <a class="tarjeta-boton terciaria" href="{{ url_for('blancos.recibo') }}">
-        <span class="icono">📄</span> Recibo en blanco
-    </a>
-    <a class="tarjeta-boton terciaria" href="{{ url_for('configuracion.form') }}">
-        <span class="icono">⚙️</span> Configuración
+    <a class="accion-grande verde" href="{{ url_for('recibos.nuevo') }}">
+        <span class="icono-caja">{{ icon("dollar", "icon-lg") }}</span>
+        <span><strong>Nuevo recibo</strong><small>Cobro de un trabajo</small></span>
     </a>
 </div>
 
-<div class="resumen-numeros">
-    <div class="item">Último boleto: <strong>{{ "%04d"|format(ultimo_boleto) }}</strong></div>
-    <div class="item">Último recibo: <strong>{{ "%04d"|format(ultimo_recibo) }}</strong></div>
+<div class="numeros">
+    <div class="card numero"><small>Último boleto</small><strong>{{ "%04d"|format(ultimo_boleto) }}</strong></div>
+    <div class="card numero"><small>Último recibo</small><strong>{{ "%04d"|format(ultimo_recibo) }}</strong></div>
+</div>
+
+<div class="atajos">
+    <a class="atajo" href="{{ url_for('clientes.lista') }}">{{ icon("users") }} Clientes</a>
+    <a class="atajo" href="{{ url_for('historial.index') }}">{{ icon("clock") }} Historial</a>
+    <a class="atajo" href="{{ url_for('blancos.boleto') }}">{{ icon("file") }} Boleto en blanco</a>
+    <a class="atajo" href="{{ url_for('blancos.recibo') }}">{{ icon("file") }} Recibo en blanco</a>
+    <a class="atajo" href="{{ url_for('backups.index') }}">{{ icon("database") }} Backups</a>
+    <a class="atajo" href="{{ url_for('configuracion.form') }}">{{ icon("settings") }} Configuración</a>
 </div>
 {% endblock %}

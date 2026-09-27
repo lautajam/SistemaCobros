@@ -10,7 +10,7 @@ def boleto():
     try:
         ruta = documentos.generar_pdf_blanco("boleto")
     except RuntimeError as e:
-        flash(str(e))
+        flash(str(e), "error")
         return redirect(url_for("main.index"))
     return send_file(ruta, as_attachment=True)
 
@@ -20,6 +20,6 @@ def recibo():
     try:
         ruta = documentos.generar_pdf_blanco("recibo")
     except RuntimeError as e:
-        flash(str(e))
+        flash(str(e), "error")
         return redirect(url_for("main.index"))
     return send_file(ruta, as_attachment=True)

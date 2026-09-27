@@ -1,53 +1,48 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon, campo, archivo %}
 {% block titulo %}Configuración{% endblock %}
 {% block contenido %}
-<h1>Configuración del service</h1>
-<p class="subtitulo">Estos datos aparecen automáticamente en los boletos y recibos generados.</p>
+<div class="page-head">
+    <div class="titulo">
+        <h1>Configuración</h1>
+        <p class="sub">Estos datos salen en los boletos y recibos.</p>
+    </div>
+</div>
 
-<form class="formulario" method="post" enctype="multipart/form-data">
-    <div class="fila-campos">
-        <div class="grupo-campo">
-            <label>Nombre / nombre comercial</label>
-            <input type="text" name="nombre" value="{{ cfg.nombre }}">
-        </div>
-        <div class="grupo-campo">
-            <label>CUIT</label>
-            <input type="text" name="cuit" value="{{ cfg.cuit }}">
-        </div>
-    </div>
-    <div class="fila-campos">
-        <div class="grupo-campo">
-            <label>Teléfono</label>
-            <input type="text" name="telefono" value="{{ cfg.telefono }}">
-        </div>
-        <div class="grupo-campo">
-            <label>Email</label>
-            <input type="email" name="email" value="{{ cfg.email }}">
+<form class="card card-pad" method="post" enctype="multipart/form-data" data-lock>
+    <div class="form-section">
+        <h2>{{ icon("tool") }} Datos del service</h2>
+        <div class="form-grid cols-2">
+            {{ campo("Nombre comercial", "nombre", cfg.nombre) }}
+            {{ campo("CUIT", "cuit", cfg.cuit) }}
+            {{ campo("Teléfono", "telefono", cfg.telefono, tipo="tel", extra='inputmode="tel"') }}
+            {{ campo("Email", "email", cfg.email, tipo="email") }}
         </div>
     </div>
-    <div class="fila-campos">
-        <div class="grupo-campo">
-            <label>Dirección</label>
-            <input type="text" name="direccion" value="{{ cfg.direccion }}">
-        </div>
-        <div class="grupo-campo">
-            <label>Localidad</label>
-            <input type="text" name="localidad" value="{{ cfg.localidad }}">
-        </div>
-        <div class="grupo-campo">
-            <label>Código postal</label>
-            <input type="text" name="codigo_postal" value="{{ cfg.codigo_postal }}">
+
+    <div class="form-section">
+        <h2>{{ icon("home") }} Dirección</h2>
+        <div class="form-grid cols-3">
+            {{ campo("Dirección", "direccion", cfg.direccion) }}
+            {{ campo("Localidad", "localidad", cfg.localidad) }}
+            {{ campo("Código postal", "codigo_postal", cfg.codigo_postal) }}
         </div>
     </div>
-    <div class="grupo-campo">
-        <label>Logo (PNG/JPG/GIF)</label>
-        <input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.gif">
-        {% if cfg.logo %}
-        <img class="logo-actual" src="{{ url_for('configuracion.logo') }}" alt="Logo actual">
-        {% endif %}
+
+    <div class="form-section">
+        <h2>{{ icon("file") }} Logo</h2>
+        <div class="stack" style="gap:12px">
+            {% if cfg.logo %}<img class="logo-actual" src="{{ url_for('configuracion.logo') }}" alt="Logo actual">{% endif %}
+            <div class="field">
+                <span class="label">{{ "Cambiar logo" if cfg.logo else "Subir logo" }}</span>
+                {{ archivo("logo_file", ".png,.jpg,.jpeg,.gif", etiqueta="Elegir imagen…") }}
+                <span class="hint">PNG, JPG o GIF de hasta 2 MB.</span>
+            </div>
+        </div>
     </div>
-    <div class="acciones-form">
-        <button class="boton" type="submit">Guardar configuración</button>
+
+    <div class="form-actions">
+        <button class="btn" type="submit">{{ icon("check") }} Guardar configuración</button>
     </div>
 </form>
 {% endblock %}

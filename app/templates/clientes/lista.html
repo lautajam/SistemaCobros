@@ -1,40 +1,54 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon %}
 {% block titulo %}Clientes{% endblock %}
 {% block contenido %}
-<h1>Clientes</h1>
-<p class="subtitulo">Buscá un cliente existente o creá uno nuevo.</p>
+<div class="page-head">
+    <h1>Clientes</h1>
+    <div class="page-actions">
+        <a class="btn" href="{{ url_for('clientes.nuevo') }}">{{ icon("plus") }} Nuevo cliente</a>
+    </div>
+</div>
 
-{% if error %}<div class="alerta-error">{{ error }}</div>{% endif %}
+{% if error %}<div class="callout callout-error" style="margin-bottom:16px">{{ icon("alert") }} {{ error }}</div>{% endif %}
 
-<div class="barra-busqueda">
-    <form method="get" style="display:flex; gap:10px;">
-        <input type="text" name="q" placeholder="Buscar por nombre, DNI/CUIT, teléfono o email" value="{{ q }}" style="min-width:320px;">
-        <button class="boton secundario" type="submit">Buscar</button>
+<div class="toolbar">
+    <form method="get" role="search">
+        <div class="input-icono">
+            {{ icon("search") }}
+            <input class="input" type="search" name="q" value="{{ q }}" placeholder="Nombre, DNI o teléfono" aria-label="Buscar clientes">
+        </div>
+        <button class="btn btn-secondary" type="submit">Buscar</button>
+        {% if q %}<a class="btn btn-ghost" href="{{ url_for('clientes.lista') }}">Limpiar</a>{% endif %}
     </form>
-    <a class="boton" href="{{ url_for('clientes.nuevo') }}">+ Nuevo cliente</a>
 </div>
 
 {% if clientes %}
-<table class="tabla">
-    <thead>
-        <tr><th>Nombre</th><th>DNI/CUIT</th><th>Teléfono</th><th>Localidad</th><th></th></tr>
-    </thead>
-    <tbody>
-        {% for c in clientes %}
-        <tr>
-            <td>{{ c.nombre }}</td>
-            <td>{{ c.dni_cuit }}</td>
-            <td>{{ c.telefono }}</td>
-            <td>{{ c.localidad }}</td>
-            <td class="acciones">
-                <a class="boton chico" href="{{ url_for('clientes.detalle', cliente_id=c.id) }}">Ver historial</a>
-                <a class="boton chico secundario" href="{{ url_for('clientes.editar', cliente_id=c.id) }}">Editar</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-wrap">
+    <table class="table">
+        <thead>
+            <tr><th>Nombre</th><th>DNI / CUIT</th><th>Teléfono</th><th>Localidad</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for c in clientes %}
+            <tr>
+                <td class="nombre principal" data-label="Nombre"><a href="{{ url_for('clientes.detalle', cliente_id=c.id) }}">{{ c.nombre }}</a></td>
+                <td data-label="DNI / CUIT">{{ c.dni_cuit or "—" }}</td>
+                <td data-label="Teléfono">{{ c.telefono or "—" }}</td>
+                <td data-label="Localidad">{{ c.localidad or "—" }}</td>
+                <td class="acciones">
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('clientes.detalle', cliente_id=c.id) }}">Ver</a>
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('clientes.editar', cliente_id=c.id) }}">{{ icon("edit") }} Editar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% else %}
-<div class="vacio">No se encontraron clientes.</div>
+<div class="card empty">
+    {{ icon("users") }}
+    <p>{{ "No hay clientes que coincidan." if q else "Todavía no hay clientes." }}</p>
+    {% if not q %}<a class="btn" href="{{ url_for('clientes.nuevo') }}">{{ icon("plus") }} Crear el primero</a>{% endif %}
+</div>
 {% endif %}
 {% endblock %}

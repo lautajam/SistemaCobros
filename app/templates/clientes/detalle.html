@@ -1,66 +1,75 @@
 {% extends "base.html" %}
-{% block titulo %}{{ cliente.nombre }} - Historial{% endblock %}
+{% from "_macros.html" import icon, dato %}
+{% block titulo %}{{ cliente.nombre }}{% endblock %}
 {% block contenido %}
-<a class="enlace-volver" href="{{ url_for('clientes.lista') }}">&larr; Volver a clientes</a>
+<a class="back-link" href="{{ url_for('clientes.lista') }}">{{ icon("arrow-left") }} Clientes</a>
 
-<div class="ficha">
-    <h1 style="margin-bottom:4px;">{{ cliente.nombre }}</h1>
-    <dl>
-        <div><dt>DNI/CUIT</dt><dd>{{ cliente.dni_cuit or "-" }}</dd></div>
-        <div><dt>Teléfono</dt><dd>{{ cliente.telefono or "-" }}</dd></div>
-        <div><dt>Email</dt><dd>{{ cliente.email or "-" }}</dd></div>
-        <div><dt>Dirección</dt><dd>{{ cliente.direccion or "-" }}</dd></div>
-        <div><dt>Localidad</dt><dd>{{ cliente.localidad or "-" }}{% if cliente.codigo_postal %} (CP {{ cliente.codigo_postal }}){% endif %}</dd></div>
-    </dl>
-    {% if cliente.observaciones %}<p style="margin-top:12px;"><em>{{ cliente.observaciones }}</em></p>{% endif %}
-    <div class="acciones-form" style="margin-top:14px;">
-        <a class="boton secundario" href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}">Editar cliente</a>
-        <a class="boton" href="{{ url_for('boletos.nuevo', cliente_id=cliente.id) }}">+ Nuevo boleto</a>
-        <a class="boton verde" href="{{ url_for('recibos.nuevo', cliente_id=cliente.id) }}">+ Nuevo recibo</a>
+<div class="page-head">
+    <div class="titulo">
+        <h1>{{ cliente.nombre }}</h1>
+        {% if cliente.telefono %}<p class="sub">{{ icon("phone") }} {{ cliente.telefono }}</p>{% endif %}
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-secondary" href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}">{{ icon("edit") }} Editar</a>
+        <a class="btn" href="{{ url_for('boletos.nuevo', cliente_id=cliente.id) }}">{{ icon("plus") }} Boleto</a>
+        <a class="btn btn-success" href="{{ url_for('recibos.nuevo', cliente_id=cliente.id) }}">{{ icon("plus") }} Recibo</a>
     </div>
 </div>
 
-<h2>Boletos ({{ boletos|length }})</h2>
+<div class="card card-pad" style="margin-bottom:24px">
+    <dl class="detalles">
+        {{ dato("DNI / CUIT", cliente.dni_cuit) }}
+        {{ dato("Email", cliente.email) }}
+        {{ dato("Dirección", cliente.direccion) }}
+        {% set cp = ("CP " ~ cliente.codigo_postal) if cliente.codigo_postal else "" %}
+        {{ dato("Localidad", (cliente.localidad ~ " · " ~ cp) if (cliente.localidad and cp) else (cliente.localidad or cp)) }}
+        {% if cliente.observaciones %}
+        <div class="ancho"><dt>Observaciones</dt><dd class="texto-largo">{{ cliente.observaciones }}</dd></div>
+        {% endif %}
+    </dl>
+</div>
+
+<div class="card-head"><h2>Boletos <span class="badge">{{ boletos|length }}</span></h2></div>
 {% if boletos %}
-<table class="tabla">
-    <thead><tr><th>N.º</th><th>Fecha</th><th>Equipo</th><th>Marca / Modelo</th><th></th></tr></thead>
-    <tbody>
-        {% for b in boletos %}
-        <tr>
-            <td>{{ b.numero }}</td>
-            <td>{{ b.fecha }}</td>
-            <td>{{ b.equipo }}</td>
-            <td>{{ b.marca }} {{ b.modelo }}</td>
-            <td class="acciones">
-                <a class="boton chico" href="{{ url_for('boletos.detalle', boleto_id=b.id) }}">Ver</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-wrap" style="margin-bottom:24px">
+    <table class="table">
+        <thead><tr><th>N.º</th><th>Fecha</th><th>Equipo</th><th>Marca / Modelo</th><th></th></tr></thead>
+        <tbody>
+            {% for b in boletos %}
+            <tr>
+                <td class="nombre principal" data-label="N.º"><a href="{{ url_for('boletos.detalle', boleto_id=b.id) }}">N.º {{ b.numero }}</a></td>
+                <td data-label="Fecha">{{ b.fecha }}</td>
+                <td data-label="Equipo">{{ b.equipo or "—" }}</td>
+                <td data-label="Marca / Modelo">{{ (b.marca ~ " " ~ b.modelo)|trim or "—" }}</td>
+                <td class="acciones"><a class="btn btn-secondary btn-sm" href="{{ url_for('boletos.detalle', boleto_id=b.id) }}">Ver</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% else %}
-<div class="vacio">Este cliente todavía no tiene boletos.</div>
+<div class="card empty" style="margin-bottom:24px">{{ icon("inbox") }}<p>Sin boletos todavía.</p></div>
 {% endif %}
 
-<h2 style="margin-top:26px;">Recibos ({{ recibos|length }})</h2>
+<div class="card-head"><h2>Recibos <span class="badge badge-verde">{{ recibos|length }}</span></h2></div>
 {% if recibos %}
-<table class="tabla">
-    <thead><tr><th>N.º</th><th>Fecha</th><th>Trabajo</th><th>Importe</th><th></th></tr></thead>
-    <tbody>
-        {% for r in recibos %}
-        <tr>
-            <td>{{ r.numero }}</td>
-            <td>{{ r.fecha }}</td>
-            <td>{{ r.trabajo }}</td>
-            <td>$ {{ r.importe }}</td>
-            <td class="acciones">
-                <a class="boton chico" href="{{ url_for('recibos.detalle', recibo_id=r.id) }}">Ver</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>N.º</th><th>Fecha</th><th>Trabajo</th><th>Importe</th><th></th></tr></thead>
+        <tbody>
+            {% for r in recibos %}
+            <tr>
+                <td class="nombre principal" data-label="N.º"><a href="{{ url_for('recibos.detalle', recibo_id=r.id) }}">N.º {{ r.numero }}</a></td>
+                <td data-label="Fecha">{{ r.fecha }}</td>
+                <td data-label="Trabajo">{{ r.trabajo or "—" }}</td>
+                <td data-label="Importe">$ {{ r.importe|pesos }}</td>
+                <td class="acciones"><a class="btn btn-secondary btn-sm" href="{{ url_for('recibos.detalle', recibo_id=r.id) }}">Ver</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% else %}
-<div class="vacio">Este cliente todavía no tiene recibos.</div>
+<div class="card empty">{{ icon("inbox") }}<p>Sin recibos todavía.</p></div>
 {% endif %}
 {% endblock %}

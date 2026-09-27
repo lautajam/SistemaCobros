@@ -25,11 +25,11 @@ def crear():
     try:
         ruta = backup.crear_backup_para_descargar()
     except backup.BackupError as error:
-        flash(_recortar(f"No se pudo crear el backup: {error}"))
+        flash(_recortar(f"No se pudo crear el backup: {error}"), "error")
         return redirect(url_for("backups.index"))
     except Exception as error:
         current_app.logger.exception("Falló la creación del backup")
-        flash(_recortar(f"No se pudo crear el backup: {error}"))
+        flash(_recortar(f"No se pudo crear el backup: {error}"), "error")
         return redirect(url_for("backups.index"))
 
     respuesta = send_file(ruta, as_attachment=True, download_name=os.path.basename(ruta), mimetype="application/zip")
@@ -51,7 +51,7 @@ def crear():
 def subir():
     archivo = request.files.get("archivo")
     if not archivo or not (archivo.filename or "").lower().endswith(".zip"):
-        flash("Elegí un archivo de backup (.zip) para restaurar.")
+        flash("Elegí un archivo de backup (.zip) para restaurar.", "error")
         return redirect(url_for("backups.index"))
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -59,10 +59,10 @@ def subir():
         archivo.save(temporal)
         try:
             backup.restaurar_backup(temporal)
-            flash("Backup restaurado correctamente. Todos los datos actuales fueron reemplazados por los del backup.")
+            flash("Backup restaurado correctamente. Los datos actuales fueron reemplazados por los del backup.", "success")
         except backup.BackupError as error:
-            flash(_recortar(str(error)))
+            flash(_recortar(str(error)), "error")
         except Exception as error:
             current_app.logger.exception("Falló la restauración")
-            flash(_recortar(f"No se pudo restaurar el backup: {error}"))
+            flash(_recortar(f"No se pudo restaurar el backup: {error}"), "error")
     return redirect(url_for("backups.index"))

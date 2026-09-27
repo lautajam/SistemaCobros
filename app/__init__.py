@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal, InvalidOperation
 
 from flask import Flask
 
@@ -23,6 +24,7 @@ def create_app():
     db.init_db(app)
     _inicializar_carpetas(app)
     _registrar_blueprints(app)
+    _registrar_filtros(app)
     _registrar_context_processor(app)
     _registrar_modo_mantenimiento(app)
 
@@ -50,12 +52,31 @@ def _registrar_blueprints(app):
     app.register_blueprint(backups.bp)
 
 
+def _registrar_filtros(app):
+    @app.template_filter("pesos")
+    def pesos(valor):
+        """45000.5 -> '45.000,50' (formato argentino). Vacío -> '0,00'."""
+        try:
+            numero = Decimal(str(valor).strip() or "0")
+        except InvalidOperation:
+            return valor
+        texto = f"{numero:,.2f}"
+        return texto.replace(",", "\0").replace(".", ",").replace("\0", ".")
+
+
 def _registrar_context_processor(app):
     @app.context_processor
     def inject_globals():
         from .routes.configuracion import get_config
 
+        estaticos = os.path.join(app.root_path, "static")
+        version = max(
+            int(os.path.getmtime(os.path.join(carpeta, archivo)))
+            for carpeta in (os.path.join(estaticos, "css"), os.path.join(estaticos, "js"))
+            for archivo in os.listdir(carpeta)
+        )
         return {
+            "asset_v": version,
             "service_cfg": get_config(),
             "ultimo_boleto": counters.get_last_number("boleto"),
             "ultimo_recibo": counters.get_last_number("recibo"),

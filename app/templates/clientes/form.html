@@ -1,51 +1,37 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon, campo, area %}
 {% block titulo %}{{ "Editar cliente" if cliente else "Nuevo cliente" }}{% endblock %}
 {% block contenido %}
-<a class="enlace-volver" href="{{ url_for('clientes.lista') }}">&larr; Volver a clientes</a>
-<h1>{{ "Editar cliente" if cliente else "Nuevo cliente" }}</h1>
+<a class="back-link" href="{{ url_for('clientes.detalle', cliente_id=cliente.id) if cliente else url_for('clientes.lista') }}">{{ icon("arrow-left") }} Volver</a>
+<div class="page-head">
+    <h1>{{ "Editar cliente" if cliente else "Nuevo cliente" }}</h1>
+</div>
 
-<form class="formulario" method="post">
-    <div class="fila-campos">
-        <div class="grupo-campo">
-            <label>Nombre y apellido / Razón social *</label>
-            <input type="text" name="nombre" required value="{{ cliente.nombre if cliente else '' }}">
-        </div>
-        <div class="grupo-campo">
-            <label>DNI / CUIT</label>
-            <input type="text" name="dni_cuit" value="{{ cliente.dni_cuit if cliente else '' }}">
-        </div>
-    </div>
-    <div class="fila-campos">
-        <div class="grupo-campo">
-            <label>Teléfono</label>
-            <input type="text" name="telefono" value="{{ cliente.telefono if cliente else '' }}">
-        </div>
-        <div class="grupo-campo">
-            <label>Email</label>
-            <input type="email" name="email" value="{{ cliente.email if cliente else '' }}">
+<form class="card card-pad" method="post" data-lock>
+    <div class="form-section">
+        <h2>{{ icon("user") }} Datos</h2>
+        <div class="form-grid cols-2">
+            {{ campo("Nombre o razón social", "nombre", cliente.nombre if cliente else "", requerido=True, extra='autocomplete="name"') }}
+            {{ campo("DNI / CUIT", "dni_cuit", cliente.dni_cuit if cliente else "") }}
+            {{ campo("Teléfono", "telefono", cliente.telefono if cliente else "", tipo="tel", extra='autocomplete="tel" inputmode="tel"') }}
+            {{ campo("Email", "email", cliente.email if cliente else "", tipo="email", extra='autocomplete="email"') }}
         </div>
     </div>
-    <div class="fila-campos">
-        <div class="grupo-campo">
-            <label>Dirección</label>
-            <input type="text" name="direccion" value="{{ cliente.direccion if cliente else '' }}">
-        </div>
-        <div class="grupo-campo">
-            <label>Localidad</label>
-            <input type="text" name="localidad" value="{{ cliente.localidad if cliente else '' }}">
-        </div>
-        <div class="grupo-campo">
-            <label>Código postal</label>
-            <input type="text" name="codigo_postal" value="{{ cliente.codigo_postal if cliente else '' }}">
+
+    <div class="form-section">
+        <h2>{{ icon("home") }} Dirección</h2>
+        <div class="form-grid cols-3">
+            {{ campo("Dirección", "direccion", cliente.direccion if cliente else "") }}
+            {{ campo("Localidad", "localidad", cliente.localidad if cliente else "") }}
+            {{ campo("Código postal", "codigo_postal", cliente.codigo_postal if cliente else "") }}
         </div>
     </div>
-    <div class="grupo-campo">
-        <label>Observaciones</label>
-        <textarea name="observaciones">{{ cliente.observaciones if cliente else '' }}</textarea>
-    </div>
-    <div class="acciones-form">
-        <button class="boton" type="submit">Guardar cliente</button>
-        <a class="boton secundario" href="{{ url_for('clientes.lista') }}">Cancelar</a>
+
+    {{ area("Observaciones", "observaciones", cliente.observaciones if cliente else "") }}
+
+    <div class="form-actions">
+        <button class="btn" type="submit">{{ icon("check") }} Guardar cliente</button>
+        <a class="btn btn-secondary" href="{{ url_for('clientes.detalle', cliente_id=cliente.id) if cliente else url_for('clientes.lista') }}">Cancelar</a>
     </div>
 </form>
 {% endblock %}

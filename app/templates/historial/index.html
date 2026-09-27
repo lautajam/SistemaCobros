@@ -1,57 +1,74 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon %}
 {% block titulo %}Historial{% endblock %}
 {% block contenido %}
-<h1>Historial</h1>
-
-<div class="pestanas">
-    <a class="{{ 'activa' if tab == 'boletos' }}" href="{{ url_for('historial.index', tab='boletos') }}">Boletos</a>
-    <a class="{{ 'activa' if tab == 'recibos' }}" href="{{ url_for('historial.index', tab='recibos') }}">Recibos</a>
+<div class="page-head">
+    <h1>Historial</h1>
 </div>
 
-<form class="barra-busqueda" method="get">
-    <input type="hidden" name="tab" value="{{ tab }}">
-    <input type="text" name="q" placeholder="{{ 'Buscar por número, cliente, equipo, marca, modelo o N.º de serie' if tab == 'boletos' else 'Buscar por número, cliente, forma de pago o importe' }}" value="{{ q }}" style="min-width:340px;">
-    <input type="date" name="fecha" value="{{ fecha }}">
-    <button class="boton secundario" type="submit">Filtrar</button>
-    {% if q or fecha %}<a class="boton secundario" href="{{ url_for('historial.index', tab=tab) }}">Limpiar</a>{% endif %}
-</form>
+<nav class="segmented" aria-label="Tipo de documento">
+    <a href="{{ url_for('historial.index', tab='boletos') }}" {% if tab == 'boletos' %}aria-current="page"{% endif %}>{{ icon("file-text") }} Boletos</a>
+    <a href="{{ url_for('historial.index', tab='recibos') }}" {% if tab == 'recibos' %}aria-current="page"{% endif %}>{{ icon("dollar") }} Recibos</a>
+</nav>
+
+<div class="toolbar">
+    <form method="get" role="search">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <div class="input-icono">
+            {{ icon("search") }}
+            <input class="input" type="search" name="q" value="{{ q }}"
+                   placeholder="{{ 'Número, cliente, equipo o serie' if tab == 'boletos' else 'Número, cliente, pago o importe' }}"
+                   aria-label="Buscar">
+        </div>
+        <input class="input" type="date" name="fecha" value="{{ fecha }}" aria-label="Filtrar por fecha">
+        <button class="btn btn-secondary" type="submit">Filtrar</button>
+        {% if q or fecha %}<a class="btn btn-ghost" href="{{ url_for('historial.index', tab=tab) }}">Limpiar</a>{% endif %}
+    </form>
+</div>
 
 {% if registros %}
-<table class="tabla">
-    <thead>
-    {% if tab == 'boletos' %}
-        <tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Marca/Modelo</th><th>N.º serie</th><th></th></tr>
-    {% else %}
-        <tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Forma de pago</th><th>Importe</th><th></th></tr>
-    {% endif %}
-    </thead>
-    <tbody>
-        {% for reg in registros %}
-        <tr>
-            <td>{{ reg.numero }}</td>
-            <td>{{ reg.fecha }}</td>
-            <td>{{ reg.cliente_nombre }}</td>
-            {% if tab == 'boletos' %}
-                <td>{{ reg.equipo }}</td>
-                <td>{{ reg.marca }} {{ reg.modelo }}</td>
-                <td>{{ reg.numero_serie }}</td>
+<div class="table-wrap">
+    <table class="table">
+        <thead>
+        {% if tab == 'boletos' %}
+            <tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Marca / modelo</th><th></th></tr>
+        {% else %}
+            <tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th>Importe</th><th></th></tr>
+        {% endif %}
+        </thead>
+        <tbody>
+            {% for reg in registros %}
+            <tr>
+                {% if tab == 'boletos' %}
+                <td class="nombre principal" data-label="N.º"><a href="{{ url_for('boletos.detalle', boleto_id=reg.id) }}">N.º {{ reg.numero }}</a></td>
+                <td data-label="Fecha">{{ reg.fecha }}</td>
+                <td data-label="Cliente">{{ reg.cliente_nombre }}</td>
+                <td data-label="Equipo">{{ reg.equipo or "—" }}</td>
+                <td data-label="Marca / modelo">{{ (reg.marca ~ " " ~ reg.modelo)|trim or "—" }}</td>
                 <td class="acciones">
-                    <a class="boton chico" href="{{ url_for('boletos.detalle', boleto_id=reg.id) }}">Ver</a>
-                    <a class="boton chico secundario" href="{{ url_for('boletos.pdf', boleto_id=reg.id) }}" target="_blank">PDF</a>
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('boletos.detalle', boleto_id=reg.id) }}">Ver</a>
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('boletos.pdf', boleto_id=reg.id) }}" target="_blank" rel="noopener">{{ icon("printer") }} PDF</a>
                 </td>
-            {% else %}
-                <td>{{ reg.forma_pago }}</td>
-                <td>$ {{ reg.importe }}</td>
+                {% else %}
+                <td class="nombre principal" data-label="N.º"><a href="{{ url_for('recibos.detalle', recibo_id=reg.id) }}">N.º {{ reg.numero }}</a></td>
+                <td data-label="Fecha">{{ reg.fecha }}</td>
+                <td data-label="Cliente">{{ reg.cliente_nombre }}</td>
+                <td data-label="Pago">{{ reg.forma_pago or "—" }}</td>
+                <td data-label="Importe">$ {{ reg.importe|pesos }}</td>
                 <td class="acciones">
-                    <a class="boton chico" href="{{ url_for('recibos.detalle', recibo_id=reg.id) }}">Ver</a>
-                    <a class="boton chico secundario" href="{{ url_for('recibos.pdf', recibo_id=reg.id) }}" target="_blank">PDF</a>
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('recibos.detalle', recibo_id=reg.id) }}">Ver</a>
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('recibos.pdf', recibo_id=reg.id) }}" target="_blank" rel="noopener">{{ icon("printer") }} PDF</a>
                 </td>
-            {% endif %}
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% else %}
-<div class="vacio">No hay registros que coincidan con la búsqueda.</div>
+<div class="card empty">
+    {{ icon("inbox") }}
+    <p>{{ "No hay resultados." if (q or fecha) else ("Todavía no hay boletos." if tab == 'boletos' else "Todavía no hay recibos.") }}</p>
+</div>
 {% endif %}
 {% endblock %}

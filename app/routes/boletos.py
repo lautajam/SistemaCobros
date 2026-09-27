@@ -52,7 +52,7 @@ def nuevo():
         cliente = _get_cliente(cliente_id)
         if not cliente:
             return render_template(
-                "boletos/form.html", boleto=None,
+                "boletos/form.html", boleto=None, fecha_hoy=date.today().isoformat(),
                 error="Debe seleccionar (o crear) un cliente antes de guardar.",
             ), 400
 
@@ -77,13 +77,13 @@ def nuevo():
         try:
             documentos.generar_pdf_boleto(boleto, cliente)
         except RuntimeError as e:
-            flash(f"El boleto N.º {boleto['numero']} se guardó correctamente, pero no se pudo generar el PDF: {e}")
+            flash(f"El boleto N.º {boleto['numero']} se guardó correctamente, pero no se pudo generar el PDF: {e}", "warning")
         return redirect(url_for("boletos.detalle", boleto_id=boleto["id"]))
 
     cliente_id_prefill = request.args.get("cliente_id", "")
     cliente_prefill = _get_cliente(cliente_id_prefill) if cliente_id_prefill else None
     return render_template(
-        "boletos/form.html", boleto=None,
+        "boletos/form.html", boleto=None, fecha_hoy=date.today().isoformat(),
         cliente_id_prefill=cliente_id_prefill, cliente_prefill=cliente_prefill,
     )
 
@@ -122,7 +122,7 @@ def pdf(boleto_id):
     try:
         ruta = documentos.generar_pdf_boleto(boleto, cliente)
     except RuntimeError as e:
-        flash(str(e))
+        flash(str(e), "error")
         return redirect(url_for("boletos.detalle", boleto_id=boleto_id))
     return send_file(ruta, as_attachment=False)
 

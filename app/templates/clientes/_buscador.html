@@ -1,48 +1,43 @@
-{# Buscador de cliente reutilizable. Requiere en el contexto: `cliente_prefill` (opcional). #}
-<div class="grupo-campo buscador-cliente">
-    <label>Cliente *</label>
+{% from "_macros.html" import icon %}
+{# Buscador de cliente reutilizable (boleto y recibo). Contexto opcional: cliente_prefill. Lo maneja static/js/clientes.js #}
+<div class="buscador-cliente" data-buscador>
+    <span class="label sr-only" id="lbl-cliente">Cliente (obligatorio)</span>
     <input type="hidden" class="hidden-cliente-id" name="cliente_id" value="{{ cliente_prefill.id if cliente_prefill else '' }}">
 
-    <input type="text" class="input-buscar-cliente" placeholder="Buscar cliente por nombre, DNI/CUIT o teléfono..."
-           style="{{ 'display:none;' if cliente_prefill else '' }}">
-    <div class="resultados-cliente" style="display:none;"></div>
-
-    <div class="cliente-seleccionado" style="{{ '' if cliente_prefill else 'display:none;' }}">
-        {% if cliente_prefill %}
-        <strong>{{ cliente_prefill.nombre }}</strong> — {{ cliente_prefill.dni_cuit or "sin DNI/CUIT" }}{% if cliente_prefill.telefono %} · {{ cliente_prefill.telefono }}{% endif %}
-        &nbsp; <a href="#" class="cambiar-cliente">(cambiar)</a>
-        {% endif %}
+    <div class="cliente-seleccionado" data-seleccionado {% if not cliente_prefill %}hidden{% endif %}>
+        <span class="avatar" data-avatar>{{ cliente_prefill.nombre[:1]|upper if cliente_prefill else "" }}</span>
+        <span class="datos">
+            <strong data-sel-nombre>{{ cliente_prefill.nombre if cliente_prefill else "" }}</strong>
+            <small data-sel-datos>{% if cliente_prefill %}{{ cliente_prefill.dni_cuit or "sin DNI/CUIT" }}{% if cliente_prefill.telefono %} · {{ cliente_prefill.telefono }}{% endif %}{% endif %}</small>
+        </span>
+        <button type="button" class="btn btn-secondary btn-sm" data-cambiar>Cambiar</button>
     </div>
 
-    <div style="margin-top:8px;">
-        <button type="button" class="boton secundario chico boton-nuevo-cliente">+ Nuevo cliente</button>
+    <div data-buscar {% if cliente_prefill %}hidden{% endif %} style="margin-top:6px">
+        <div class="input-icono">
+            {{ icon("search") }}
+            <input class="input" type="search" data-input placeholder="Nombre, DNI o teléfono"
+                   autocomplete="off" role="combobox" aria-expanded="false" aria-controls="res-cliente" aria-labelledby="lbl-cliente">
+        </div>
+        <ul class="resultados-cliente" id="res-cliente" role="listbox" data-resultados hidden></ul>
+        <div class="row" style="margin-top:10px">
+            <button type="button" class="btn btn-secondary btn-sm" data-nuevo>{{ icon("plus") }} Cliente nuevo</button>
+        </div>
     </div>
 
-    <div class="panel-nuevo-cliente" style="display:none; margin-top:10px; border:1px dashed #c9ccd3; padding:12px; border-radius:6px;">
-        <div class="fila-campos">
-            <div class="grupo-campo">
-                <label>Nombre *</label>
-                <input type="text" class="nuevo-cliente-nombre">
-            </div>
-            <div class="grupo-campo">
-                <label>DNI/CUIT</label>
-                <input type="text" class="nuevo-cliente-dni">
-            </div>
+    <p class="mensaje-error" data-error role="alert" hidden style="margin-top:8px"></p>
+
+    <div class="panel-nuevo-cliente" data-panel-nuevo hidden>
+        <div class="form-grid cols-2">
+            <div class="field"><label for="nc-nombre">Nombre <span class="req" aria-hidden="true">*</span></label><input id="nc-nombre" type="text" data-nuevo-nombre autocomplete="off"></div>
+            <div class="field"><label for="nc-dni">DNI / CUIT</label><input id="nc-dni" type="text" data-nuevo-dni autocomplete="off"></div>
+            <div class="field"><label for="nc-tel">Teléfono</label><input id="nc-tel" type="tel" data-nuevo-telefono inputmode="tel" autocomplete="off"></div>
+            <div class="field"><label for="nc-email">Email</label><input id="nc-email" type="email" data-nuevo-email autocomplete="off"></div>
         </div>
-        <div class="fila-campos">
-            <div class="grupo-campo">
-                <label>Teléfono</label>
-                <input type="text" class="nuevo-cliente-telefono">
-            </div>
-            <div class="grupo-campo">
-                <label>Email</label>
-                <input type="text" class="nuevo-cliente-email">
-            </div>
+        <p class="mensaje-error" data-error-nuevo role="alert" hidden style="margin-top:10px"></p>
+        <div class="row" style="margin-top:12px">
+            <button type="button" class="btn btn-success btn-sm" data-guardar-nuevo>Guardar cliente</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-cancelar-nuevo>Cancelar</button>
         </div>
-        <div class="grupo-campo">
-            <label>Dirección</label>
-            <input type="text" class="nuevo-cliente-direccion">
-        </div>
-        <button type="button" class="boton verde chico boton-guardar-nuevo-cliente">Guardar cliente</button>
     </div>
 </div>
