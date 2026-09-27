@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, archivo %}
+{% from "_macros.html" import icon, archivo, csrf %}
 {% block titulo %}Backups{% endblock %}
 {% block contenido %}
 <div class="page-head">
@@ -16,7 +16,8 @@
             <h2>Crear backup</h2>
             <p class="muted">Se descarga un archivo .zip a tu PC. Si tu navegador pregunta dónde guardarlo, elegí la carpeta.</p>
         </div>
-        <form id="form-crear" method="post" action="{{ url_for('backups.crear') }}" onsubmit="return iniciarBackup(this);">
+        <form id="form-crear" method="post" action="{{ url_for('backups.crear') }}" data-backup-crear>
+            {{ csrf() }}
             <input type="hidden" name="marca" value="">
             <button class="btn btn-block" type="submit" id="btn-crear">{{ icon("download") }} <span data-texto>Crear backup</span></button>
         </form>
@@ -31,6 +32,7 @@
         <form method="post" action="{{ url_for('backups.subir') }}" enctype="multipart/form-data" class="stack" style="gap:12px"
               data-confirm="Se reemplazan todos los datos actuales por los del backup."
               data-confirm-titulo="¿Restaurar este backup?" data-confirm-boton="Restaurar">
+            {{ csrf() }}
             {{ archivo("archivo", ".zip", requerido=True, etiqueta="Elegir backup (.zip)") }}
             <button class="btn btn-danger btn-block" type="submit">{{ icon("upload") }} Subir y restaurar</button>
         </form>
@@ -39,31 +41,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-// El backup se descarga como un archivo normal. La respuesta trae una cookie con
-// la misma "marca" enviada en el formulario: al verla, sabemos que la descarga
-// empezó y volvemos a habilitar el botón.
-function iniciarBackup(form) {
-    var marca = String(Date.now());
-    form.marca.value = marca;
-    var boton = document.getElementById("btn-crear");
-    var texto = boton.querySelector("[data-texto]");
-    var textoOriginal = texto.textContent;
-    boton.disabled = true;
-    texto.textContent = "Creando backup…";
-
-    var restaurar = function () {
-        clearInterval(espera);
-        clearTimeout(limite);
-        document.cookie = "backup_listo=; Max-Age=0; path=/backups";
-        boton.disabled = false;
-        texto.textContent = textoOriginal;
-    };
-    var espera = setInterval(function () {
-        if (document.cookie.indexOf("backup_listo=" + marca) !== -1) { restaurar(); }
-    }, 300);
-    var limite = setTimeout(restaurar, 180000);
-    return true;
-}
-</script>
+<script src="{{ url_for('static', filename='js/backups.js', v=asset_v) }}" defer></script>
 {% endblock %}

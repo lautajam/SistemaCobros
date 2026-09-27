@@ -2,10 +2,12 @@ import uuid
 from datetime import date
 
 from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
+from flask_login import current_user
 
 from .. import counters, documentos, models, repo
+from ..auth import permiso
 from ..db import Session
-from ..models import Boleto, Cliente, Equipo, Recibo
+from ..models import Boleto, Cliente, Equipo, Recibo, Usuario
 
 bp = Blueprint("boletos", __name__, url_prefix="/boletos")
 
@@ -46,6 +48,7 @@ def _upsert_equipo(cliente_id, boleto):
 
 
 @bp.route("/nuevo", methods=["GET", "POST"])
+@permiso("boletos:crear")
 def nuevo():
     if request.method == "POST":
         cliente_id = (request.form.get("cliente_id") or "").strip()
@@ -61,6 +64,7 @@ def nuevo():
             "id": models.format_boleto_id(numero),
             "numero": numero,
             "cliente_id": cliente_id,
+            "creado_por_id": current_user.id,
             "fecha": request.form.get("fecha") or date.today().isoformat(),
             "hora": request.form.get("hora", ""),
             "equipo": request.form.get("equipo", ""),
@@ -89,16 +93,19 @@ def nuevo():
 
 
 @bp.route("/<boleto_id>")
+@permiso("boletos:ver")
 def detalle(boleto_id):
     boleto = repo.get(Boleto, boleto_id)
     if not boleto:
         return redirect(url_for("historial.index"))
     cliente = _get_cliente(boleto["cliente_id"])
     recibos = repo.listar(Recibo, Recibo.boleto_id == boleto_id)
-    return render_template("boletos/detalle.html", boleto=boleto, cliente=cliente, recibos=recibos)
+    creador = Session.get(Usuario, boleto["creado_por_id"]) if boleto.get("creado_por_id") else None
+    return render_template("boletos/detalle.html", boleto=boleto, cliente=cliente, recibos=recibos, creador=creador)
 
 
 @bp.route("/<boleto_id>/editar", methods=["GET", "POST"])
+@permiso("boletos:editar")
 def editar(boleto_id):
     boleto = repo.get(Boleto, boleto_id)
     if not boleto:
@@ -114,6 +121,7 @@ def editar(boleto_id):
 
 
 @bp.route("/<boleto_id>/pdf")
+@permiso("boletos:ver")
 def pdf(boleto_id):
     boleto = repo.get(Boleto, boleto_id)
     if not boleto:
@@ -128,11 +136,13 @@ def pdf(boleto_id):
 
 
 @bp.route("/<boleto_id>/eliminar", methods=["POST"])
+@permiso("boletos:eliminar")
 def eliminar(boleto_id):
     repo.eliminar(Boleto, boleto_id)
     return redirect(url_for("historial.index"))
 
 
 @bp.route("/<boleto_id>/crear-recibo")
+@permiso("recibos:crear")
 def crear_recibo(boleto_id):
     return redirect(url_for("recibos.nuevo", boleto_id=boleto_id))

@@ -4,7 +4,8 @@ import tempfile
 
 from flask import Blueprint, after_this_request, current_app, flash, redirect, render_template, request, send_file, url_for
 
-from .. import backup
+from .. import auth, backup
+from ..auth import permiso
 
 bp = Blueprint("backups", __name__, url_prefix="/backups")
 
@@ -14,11 +15,13 @@ def _recortar(mensaje, largo=800):
 
 
 @bp.route("/")
+@permiso("backups:gestionar")
 def index():
     return render_template("backups/index.html")
 
 
 @bp.route("/crear", methods=["POST"])
+@permiso("backups:gestionar")
 def crear():
     """Crea un backup y lo entrega como descarga normal del navegador. No queda
     copia en el servidor. Si falla, vuelve a la pantalla con el mensaje."""
@@ -48,6 +51,7 @@ def crear():
 
 
 @bp.route("/subir", methods=["POST"])
+@permiso("backups:gestionar")
 def subir():
     archivo = request.files.get("archivo")
     if not archivo or not (archivo.filename or "").lower().endswith(".zip"):
@@ -59,7 +63,9 @@ def subir():
         archivo.save(temporal)
         try:
             backup.restaurar_backup(temporal)
-            flash("Backup restaurado correctamente. Los datos actuales fueron reemplazados por los del backup.", "success")
+            # Las sesiones no viajan en los backups: todos (incluido quien restauró) ingresan de nuevo.
+            auth.cerrar_sesion_actual()
+            flash("Backup restaurado correctamente. Los datos fueron reemplazados; ingresá de nuevo con un usuario del backup.", "success")
         except backup.BackupError as error:
             flash(_recortar(str(error)), "error")
         except Exception as error:

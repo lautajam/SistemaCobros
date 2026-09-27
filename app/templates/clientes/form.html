@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, campo, area %}
+{% from "_macros.html" import icon, campo, area, csrf %}
 {% block titulo %}{{ "Editar cliente" if cliente else "Nuevo cliente" }}{% endblock %}
 {% block contenido %}
 <a class="back-link" href="{{ url_for('clientes.detalle', cliente_id=cliente.id) if cliente else url_for('clientes.lista') }}">{{ icon("arrow-left") }} Volver</a>
@@ -8,6 +8,7 @@
 </div>
 
 <form class="card card-pad" method="post" data-lock>
+    {{ csrf() }}
     <div class="form-section">
         <h2>{{ icon("user") }} Datos</h2>
         <div class="form-grid cols-2">

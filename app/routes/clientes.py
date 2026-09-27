@@ -1,8 +1,10 @@
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
-from sqlalchemy import Integer, cast, func, or_
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from sqlalchemy import Integer, cast, delete, func, or_, select
 
 from .. import counters, models, repo
-from ..models import Boleto, Cliente, Recibo
+from ..auth import permiso
+from ..db import Session
+from ..models import Boleto, Cliente, Equipo, Recibo
 
 bp = Blueprint("clientes", __name__, url_prefix="/clientes")
 
@@ -37,6 +39,7 @@ def crear_cliente(formulario) -> dict:
 
 
 @bp.route("/")
+@permiso("clientes:ver")
 def lista():
     q = (request.args.get("q") or "").strip()
     criterios = [_criterio_busqueda(q, incluir_email=True)] if q else []
@@ -45,6 +48,7 @@ def lista():
 
 
 @bp.route("/nuevo", methods=["GET", "POST"])
+@permiso("clientes:crear")
 def nuevo():
     if request.method == "POST":
         cliente = crear_cliente(request.form)
@@ -53,6 +57,7 @@ def nuevo():
 
 
 @bp.route("/api/crear-rapido", methods=["POST"])
+@permiso("clientes:crear")
 def crear_rapido():
     """Endpoint AJAX: crea un cliente sin recargar la página (usado desde el
     formulario de boleto/recibo)."""
@@ -64,6 +69,7 @@ def crear_rapido():
 
 
 @bp.route("/api/buscar")
+@permiso("clientes:ver")
 def api_buscar():
     q = (request.args.get("q") or "").strip()
     criterios = [_criterio_busqueda(q, incluir_email=False)] if q else []
@@ -72,6 +78,7 @@ def api_buscar():
 
 
 @bp.route("/<cliente_id>")
+@permiso("clientes:ver")
 def detalle(cliente_id):
     cliente = repo.get(Cliente, cliente_id)
     if not cliente:
@@ -87,6 +94,7 @@ def detalle(cliente_id):
 
 
 @bp.route("/<cliente_id>/editar", methods=["GET", "POST"])
+@permiso("clientes:editar")
 def editar(cliente_id):
     cliente = repo.get(Cliente, cliente_id)
     if not cliente:
@@ -95,3 +103,24 @@ def editar(cliente_id):
         repo.actualizar(Cliente, cliente_id, _campos_desde(request.form))
         return redirect(url_for("clientes.detalle", cliente_id=cliente_id))
     return render_template("clientes/form.html", cliente=cliente)
+
+
+@bp.route("/<cliente_id>/eliminar", methods=["POST"])
+@permiso("clientes:eliminar")
+def eliminar(cliente_id):
+    cliente = repo.get(Cliente, cliente_id)
+    if not cliente:
+        return redirect(url_for("clientes.lista"))
+    boletos = Session.scalar(select(func.count()).select_from(Boleto).where(Boleto.cliente_id == cliente_id))
+    recibos = Session.scalar(select(func.count()).select_from(Recibo).where(Recibo.cliente_id == cliente_id))
+    if boletos or recibos:
+        flash(
+            f"No se puede eliminar a «{cliente['nombre']}»: tiene {boletos} boleto(s) y {recibos} recibo(s). "
+            "Eliminá primero esos documentos.", "error",
+        )
+        return redirect(url_for("clientes.detalle", cliente_id=cliente_id))
+    Session.execute(delete(Equipo).where(Equipo.cliente_id == cliente_id))
+    Session.delete(Session.get(Cliente, cliente_id))
+    Session.commit()
+    flash("Cliente eliminado.", "success")
+    return redirect(url_for("clientes.lista"))

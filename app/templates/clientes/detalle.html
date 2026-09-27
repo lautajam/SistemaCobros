@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, dato %}
+{% from "_macros.html" import icon, dato, csrf %}
 {% block titulo %}{{ cliente.nombre }}{% endblock %}
 {% block contenido %}
 <a class="back-link" href="{{ url_for('clientes.lista') }}">{{ icon("arrow-left") }} Clientes</a>
@@ -10,9 +10,17 @@
         {% if cliente.telefono %}<p class="sub">{{ icon("phone") }} {{ cliente.telefono }}</p>{% endif %}
     </div>
     <div class="page-actions">
-        <a class="btn btn-secondary" href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}">{{ icon("edit") }} Editar</a>
+        {% if puede('clientes:editar') %}<a class="btn btn-secondary" href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}">{{ icon("edit") }} Editar</a>{% endif %}
         <a class="btn" href="{{ url_for('boletos.nuevo', cliente_id=cliente.id) }}">{{ icon("plus") }} Boleto</a>
         <a class="btn btn-success" href="{{ url_for('recibos.nuevo', cliente_id=cliente.id) }}">{{ icon("plus") }} Recibo</a>
+        {% if puede('clientes:eliminar') %}
+        <form method="post" action="{{ url_for('clientes.eliminar', cliente_id=cliente.id) }}" style="display:contents"
+              data-confirm="Se elimina a «{{ cliente.nombre }}». Solo se puede si no tiene boletos ni recibos."
+              data-confirm-titulo="¿Eliminar este cliente?" data-confirm-boton="Eliminar">
+            {{ csrf() }}
+            <button class="btn btn-secondary" type="submit" style="color:var(--danger)">{{ icon("trash") }} Eliminar</button>
+        </form>
+        {% endif %}
     </div>
 </div>
 

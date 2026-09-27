@@ -1,11 +1,13 @@
 from flask import Blueprint, flash, redirect, send_file, url_for
 
 from .. import documentos
+from ..auth import permiso
 
 bp = Blueprint("blancos", __name__, url_prefix="/blancos")
 
 
 @bp.route("/boleto")
+@permiso("blancos:ver")
 def boleto():
     try:
         ruta = documentos.generar_pdf_blanco("boleto")
@@ -16,6 +18,7 @@ def boleto():
 
 
 @bp.route("/recibo")
+@permiso("blancos:ver")
 def recibo():
     try:
         ruta = documentos.generar_pdf_blanco("recibo")

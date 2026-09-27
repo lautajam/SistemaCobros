@@ -1,9 +1,12 @@
 from datetime import date
 
 from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
+from flask_login import current_user
 
 from .. import counters, documentos, models, repo
-from ..models import Boleto, Cliente, Recibo
+from ..auth import permiso
+from ..db import Session
+from ..models import Boleto, Cliente, Recibo, Usuario
 
 bp = Blueprint("recibos", __name__, url_prefix="/recibos")
 
@@ -21,6 +24,7 @@ def _get_boleto(boleto_id):
 
 
 @bp.route("/nuevo", methods=["GET", "POST"])
+@permiso("recibos:crear")
 def nuevo():
     boleto_id = request.values.get("boleto_id", "").strip()
     boleto = _get_boleto(boleto_id)
@@ -39,6 +43,7 @@ def nuevo():
             "id": models.format_recibo_id(numero),
             "numero": numero,
             "cliente_id": cliente_id,
+            "creado_por_id": current_user.id,
             "boleto_id": boleto["id"] if boleto else "",
             "fecha": request.form.get("fecha") or date.today().isoformat(),
             "trabajo": request.form.get("trabajo", ""),
@@ -61,16 +66,19 @@ def nuevo():
 
 
 @bp.route("/<recibo_id>")
+@permiso("recibos:ver")
 def detalle(recibo_id):
     recibo = repo.get(Recibo, recibo_id)
     if not recibo:
         return redirect(url_for("historial.index"))
     cliente = _get_cliente(recibo["cliente_id"])
     boleto = _get_boleto(recibo.get("boleto_id"))
-    return render_template("recibos/detalle.html", recibo=recibo, cliente=cliente, boleto=boleto)
+    creador = Session.get(Usuario, recibo["creado_por_id"]) if recibo.get("creado_por_id") else None
+    return render_template("recibos/detalle.html", recibo=recibo, cliente=cliente, boleto=boleto, creador=creador)
 
 
 @bp.route("/<recibo_id>/editar", methods=["GET", "POST"])
+@permiso("recibos:editar")
 def editar(recibo_id):
     recibo = repo.get(Recibo, recibo_id)
     if not recibo:
@@ -87,6 +95,7 @@ def editar(recibo_id):
 
 
 @bp.route("/<recibo_id>/pdf")
+@permiso("recibos:ver")
 def pdf(recibo_id):
     recibo = repo.get(Recibo, recibo_id)
     if not recibo:
@@ -101,6 +110,7 @@ def pdf(recibo_id):
 
 
 @bp.route("/<recibo_id>/eliminar", methods=["POST"])
+@permiso("recibos:eliminar")
 def eliminar(recibo_id):
     repo.eliminar(Recibo, recibo_id)
     return redirect(url_for("historial.index"))

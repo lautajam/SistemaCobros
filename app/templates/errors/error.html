@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<div class="auth-caja">
+    <div class="card card-pad empty" style="padding-block:40px">
+        <span class="codigo-error">{{ codigo }}</span>
+        <h1>{{ titulo }}</h1>
+        <p>{{ mensaje }}</p>
+        <a class="btn" href="{{ url_for('main.index') if current_user.is_authenticated else url_for('auth.login') }}" style="margin-top:8px">
+            {{ icon("home") }} {{ "Volver al inicio" if current_user.is_authenticated else "Ir a ingresar" }}
+        </a>
+    </div>
+</div>
+{% endblock %}

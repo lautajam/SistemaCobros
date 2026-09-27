@@ -2,7 +2,8 @@
 
 Aplicación web local (uso en un solo equipo / red interna) para gestionar
 la recepción de equipos, boletos, recibos y clientes de un service técnico.
-Corre en **Docker** con una base de datos **PostgreSQL** y tiene **backups
+Corre en **Docker** con una base de datos **PostgreSQL**, con **login y roles**
+(administrador y técnico) y **backups
 completos y manuales**: se crean con un botón, se guardan donde vos elijas en tu
 PC (fuera de Docker) y se pueden volver a cargar desde la propia app.
 
@@ -17,7 +18,8 @@ PC (fuera de Docker) y se pueden volver a cargar desde la propia app.
 - **Interfaz:** HTML renderizado por Flask (Jinja2) + **CSS propio** (sistema de diseño responsive, sin frameworks ni compilación) + JavaScript "vanilla". Funciona sin internet.
 - **Plantillas de documentos:** HTML + Jinja2, totalmente separadas del código y editables.
 - **HTML → PDF:** `pdfkit` + `wkhtmltopdf` (ya instalado dentro de la imagen Docker).
-- **Backups:** `pg_dump` / `pg_restore` (cliente de PostgreSQL 16, también dentro de la imagen).
+- **Backups:** `pg_dump` / `pg_restore` / `psql` (cliente de PostgreSQL 16, también dentro de la imagen).
+- **Login y seguridad:** Flask-Login (sesiones), Flask-WTF (protección CSRF) y contraseñas con hash scrypt.
 - **Infraestructura:** Docker Compose con dos servicios (`db` y `app`).
 
 ### Servicios y datos en Docker
@@ -46,6 +48,7 @@ service-app/
 │   ├── settings.py            # DATABASE_URL leída del entorno
 │   ├── db.py                  # Conexión y sesiones de SQLAlchemy
 │   ├── models.py              # Tablas de la base + formato de IDs
+│   ├── auth.py                # Login, roles y permisos, sesiones, bloqueo de intentos, cabeceras de seguridad, comando reset-admin
 │   ├── repo.py                # Acceso a datos (get / listar / insertar / actualizar / eliminar)
 │   ├── counters.py            # Numeración correlativa independiente y persistente
 │   ├── backup.py              # Crear (para descarga) y restaurar backups
@@ -59,6 +62,9 @@ service-app/
 │   │   ├── historial.py       # Historial general con pestañas y filtros
 │   │   ├── configuracion.py   # Datos del service + logo
 │   │   ├── blancos.py         # Boletos/recibos en blanco
+│   │   ├── auth.py            # Ingresar / cerrar sesión
+│   │   ├── cuenta.py          # Mi cuenta: cambiar contraseña (todos) y datos (admin)
+│   │   ├── usuarios.py        # Administración de técnicos (solo admin)
 │   │   └── backups.py         # Pantalla de backups: crear (descarga) y restaurar (subir un .zip)
 │   ├── templates/             # Plantillas HTML de la INTERFAZ (base.html, _macros.html, _sprite.html + una carpeta por sección)
 │   └── static/
@@ -86,6 +92,9 @@ service-app/
 - **equipos** (auxiliar): `id, cliente_id, tipo, marca, modelo, numero_serie` — se completa solo si el boleto trae N.º de serie, como base para consultar en el futuro el historial de un mismo equipo.
 - **configuracion:** una sola fila con los datos del service y el **logo** (guardado en la propia base, así viaja dentro de los backups).
 - **contadores:** `tipo, ultimo_numero` con tres filas (`cliente`, `boleto`, `recibo`).
+- **usuarios:** `id, usuario, nombre, rol (admin | tecnico), password_hash, activo, debe_cambiar_password, creado, ultimo_ingreso`.
+- **sesiones** (sesiones abiertas), **intentos_login** (intentos fallidos) y **ajustes** (claves internas): tablas de seguridad; sus datos no van en los backups.
+- `boletos` y `recibos` tienen además `creado_por_id` (el usuario que los creó).
 
 Un boleto **nunca** duplica los datos del cliente: guarda `cliente_id` (clave foránea). Un recibo puede estar asociado a un boleto (`boleto_id`, opcional). Si se elimina un boleto, sus recibos quedan sin boleto asociado.
 
@@ -164,7 +173,9 @@ http://127.0.0.1:5000
 
 > Los logs dicen `Listening at: http://0.0.0.0:5000`: esa es la dirección interna del contenedor y **no se puede abrir en el navegador** (da `ERR_ADDRESS_INVALID`). Entrá siempre por `127.0.0.1` o `localhost`.
 
-Al iniciar, la app crea sola las tablas de la base (Alembic). Empieza vacía.
+Al iniciar, la app crea sola las tablas de la base (Alembic) y un administrador inicial. Empieza vacía.
+
+**Primer ingreso:** usuario `admin`, contraseña `admin`. El sistema **obliga a cambiar la contraseña** antes de dejarte usar cualquier otra pantalla (y desde *Mi cuenta* podés cambiar también el nombre de usuario).
 
 ### Uso de todos los días
 
@@ -194,13 +205,90 @@ Copiá `.env.example` como `.env` y cambiá lo que quieras (contraseña de la ba
 
 ---
 
-## 3. Backups
+## 3. Usuarios, roles y seguridad
+
+No hay pantalla de registro: **nadie puede crear un usuario sin ser administrador**. Todas las páginas exigen iniciar sesión.
+
+### Roles y permisos
+
+| | Administrador | Técnico |
+|---|:---:|:---:|
+| Clientes: ver / crear | ✅ | ✅ |
+| Clientes: editar / eliminar | ✅ | ❌ |
+| Boletos y recibos: ver / crear / editar / PDF | ✅ | ✅ |
+| Boletos y recibos: eliminar | ✅ | ❌ |
+| Historial y formularios en blanco | ✅ | ✅ |
+| Usuarios (crear, editar, desactivar y eliminar técnicos) | ✅ | ❌ |
+| Cambiar la contraseña de otros usuarios | ✅ | ❌ |
+| Cambiar la propia contraseña | ✅ | ✅ |
+| Cambiar el propio nombre y usuario | ✅ | ❌ |
+| Configuración del service y Backups | ✅ | ❌ |
+
+Los permisos se controlan **en el servidor** (un técnico que escriba a mano la dirección de una pantalla de admin recibe "Sin permiso"); los botones se ocultan solo por comodidad. Cada boleto y recibo guarda quién lo creó ("Creado por").
+
+### Administración de usuarios
+
+- **Usuarios → Nuevo técnico**: nombre, usuario y contraseña inicial (con la opción de obligarlo a cambiarla en su primer ingreso).
+- **Contraseña** (de cualquier usuario): el admin define una nueva; se cierran las sesiones abiertas de esa persona.
+- **Desactivar**: el técnico no puede ingresar, pero se conserva su historial. **Eliminar** solo se permite si no tiene boletos ni recibos a su nombre.
+- No se puede eliminar ni desactivar a un administrador desde la pantalla, así que siempre queda al menos uno. Los administradores adicionales se crean solo por comando (abajo).
+- Un cliente solo se puede eliminar si no tiene boletos ni recibos.
+
+### Cómo se protege
+
+- **Contraseñas:** solo se guarda el hash (scrypt); mínimo 8 caracteres; se rechazan las triviales (`12345678`, `password`, igual al usuario...).
+- **Sesiones:** cada sesión queda registrada en la base. Cerrar sesión, cambiar la contraseña o desactivar al usuario la invalidan **aunque alguien tenga una copia de la cookie**. Vencen a las 12 horas sin uso.
+- **Bloqueo:** 5 intentos fallidos por usuario (o 30 por dirección IP) en 5 minutos bloquean el ingreso temporalmente. Se aplica igual a usuarios que no existen (no se puede averiguar qué usuarios hay) y se guarda en la base.
+- **CSRF:** todos los formularios y llamadas de escritura llevan un token.
+- **Cabeceras:** política de seguridad de contenido (sin scripts en línea), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, y HSTS cuando hay HTTPS. Las páginas con datos no se guardan en la caché del navegador.
+- **Redirecciones:** el parámetro `next` del login solo acepta rutas internas.
+
+### Recuperar el acceso
+
+Si se olvida la contraseña del administrador (o se necesita crear otro admin):
+
+```bash
+docker compose exec app flask --app run reset-admin              # usuario "admin"
+docker compose exec app flask --app run reset-admin --usuario nombre
+```
+
+Pide la contraseña por pantalla (no queda escrita en ningún archivo), crea el admin o le restablece la clave, y cierra sus sesiones.
+
+### Variables de seguridad (`.env`)
+
+| Variable | Para qué |
+|---|---|
+| `APP_ENV` | `development` (por defecto) o `production`. Con `production`: `SECRET_KEY` obligatoria, cookies solo por HTTPS y **no se crea el admin `admin`/`admin`**. |
+| `SECRET_KEY` | Clave que firma las sesiones. En desarrollo, si está vacía, se genera sola y se guarda en la base. |
+| `ADMIN_USUARIO`, `ADMIN_PASSWORD` | Admin inicial (solo se usa si todavía no hay usuarios). Con `ADMIN_PASSWORD` no obliga a cambiarla. En producción es la forma de crearlo. |
+| `TRUSTED_PROXIES` | `1` si hay un proxy con HTTPS delante (Caddy, nginx...): así la app ve la IP y el `https` reales. |
+| `COOKIE_SECURE` | `1`/`0` para forzar el flag `Secure` de la cookie (por defecto: sí en producción). |
+
+Mientras no esté en línea, el puerto de la app se publica solo en `127.0.0.1` (únicamente esta PC puede llegar).
+
+### Puesta en línea (guía para cuando se suba a un VPS)
+
+La app ya está preparada del lado del código; lo que falta es la infraestructura. Pasos recomendados en un VPS con Docker:
+
+1. **No abrir el puerto 5000.** Publicar la app detrás de un proxy con HTTPS automático, por ejemplo [Caddy](https://caddyserver.com/) (`Caddyfile` de una línea: `tu-dominio.com { reverse_proxy app:5000 }`), que obtiene y renueva el certificado solo. Solo el proxy publica los puertos 80 y 443.
+2. Definir en `.env`: `APP_ENV=production`, una `SECRET_KEY` larga y aleatoria, `ADMIN_PASSWORD` (una contraseña fuerte, sin usar `admin`), `TRUSTED_PROXIES=1` y cambiar `POSTGRES_PASSWORD`.
+3. La base de datos **nunca** se publica fuera de la red interna de Docker (así está hoy).
+4. **Backups:** hacerlos seguido y guardarlos **fuera del servidor**. Contienen los hashes de las contraseñas: tratarlos como información sensible.
+5. Firewall del servidor: solo 22 (SSH), 80 y 443.
+
+> Esta guía no fue probada todavía con un servidor real. Lo que sí está probado es el comportamiento de la app en modo `production` (arranque, cookies `Secure`, HSTS, IP real detrás del proxy, sin admin por defecto).
+
+---
+
+## 4. Backups
 
 Como la base de datos vive dentro de un volumen de Docker, **los backups son lo que protege tu información**. Son **totalmente manuales**: la app no hace backups por su cuenta, solo cuando vos lo pedís.
 
 ### Qué incluye un backup
 
-Un archivo `.zip` con **todo**: la base de datos completa (clientes, boletos, recibos, configuración, logo, numeración), los PDF generados y un `manifest.json` (fecha, versión del esquema, cantidades).
+Un archivo `.zip` con **todo**: la base de datos completa (clientes, boletos, recibos, configuración, logo, numeración y **usuarios con sus contraseñas hasheadas**), los PDF generados y un `manifest.json` (fecha, versión del esquema, cantidades). Las sesiones abiertas no se guardan.
+
+> Como incluye los usuarios, **un backup es información sensible**: guardalo en un lugar seguro.
 
 ### Crear un backup
 
@@ -214,9 +302,9 @@ Dónde se guarda depende de tu navegador: si tiene activado "Preguntar dónde gu
 
 En la pantalla **Backups**, **Subir y restaurar**: elegís un `.zip` de tu PC y se restaura al instante. Si el archivo está vacío (una descarga que no se completó) o no es un backup de esta app, avisa y no toca nada.
 
-**Reemplaza todos los datos actuales** (incluida la numeración, que vuelve al punto del backup) y los PDF. No hay backup de seguridad automático: si querés poder volver atrás, creá antes un backup de lo actual. La base se restaura en una sola transacción, así que si el archivo falla, los datos quedan como estaban.
+**Reemplaza todos los datos actuales** (incluida la numeración, que vuelve al punto del backup, y los **usuarios**) y los PDF. Al terminar, **todos tienen que volver a ingresar** (las sesiones no viajan en los backups); se ingresa con un usuario del backup. No hay backup de seguridad automático: si querés poder volver atrás, creá antes un backup de lo actual. La base se restaura en una sola transacción, así que si el archivo falla, los datos quedan como estaban.
 
-Para una máquina nueva: instalá Docker, `docker compose up --build`, abrí la app, **Backups → Subir y restaurar**, y queda todo cargado. Un backup creado con una versión más nueva de la app se rechaza con un aviso; uno más viejo se restaura y el esquema se actualiza solo.
+Si el backup es anterior al login (no trae usuarios), se vuelve a crear el administrador inicial. Para una máquina nueva: instalá Docker, `docker compose up --build`, abrí la app, **Backups → Subir y restaurar**, y queda todo cargado. Un backup creado con una versión más nueva de la app se rechaza con un aviso; uno más viejo se restaura y el esquema se actualiza solo.
 
 ### Recomendaciones
 
@@ -225,7 +313,7 @@ Para una máquina nueva: instalá Docker, `docker compose up --build`, abrí la 
 
 ---
 
-## 4. Notas de diseño y próximos módulos
+## 5. Notas de diseño y próximos módulos
 
 - El esquema de la base se versiona en `migrations/versions/`. Para cambiar tablas se crea una nueva migración con Alembic (`alembic revision --autogenerate`); se aplica sola en el próximo arranque.
 - Gunicorn corre con **un solo worker** (y varios threads): la restauración bloquea los pedidos con una bandera en memoria, que solo funciona dentro de un mismo proceso. La concurrencia de escritura la maneja PostgreSQL.

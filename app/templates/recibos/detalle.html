@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, dato %}
+{% from "_macros.html" import icon, dato, csrf %}
 {% block titulo %}Recibo N.º {{ recibo.numero }}{% endblock %}
 {% block contenido %}
 <a class="back-link" href="{{ url_for('historial.index', tab='recibos') }}">{{ icon("arrow-left") }} Historial</a>
@@ -10,17 +10,21 @@
         <p class="sub">
             {% if cliente %}<a href="{{ url_for('clientes.detalle', cliente_id=cliente.id) }}">{{ cliente.nombre }}</a>{% else %}Cliente no encontrado{% endif %}
             · {{ recibo.fecha }}
+            {% if creador %}· Creado por {{ creador.nombre_visible }}{% endif %}
             {% if boleto %}· <a href="{{ url_for('boletos.detalle', boleto_id=boleto.id) }}">Boleto N.º {{ boleto.numero }}</a>{% endif %}
         </p>
     </div>
     <div class="page-actions">
         <a class="btn btn-success" href="{{ url_for('recibos.pdf', recibo_id=recibo.id) }}" target="_blank" rel="noopener">{{ icon("printer") }} Imprimir PDF</a>
-        <a class="btn btn-secondary" href="{{ url_for('recibos.editar', recibo_id=recibo.id) }}">{{ icon("edit") }} Editar</a>
+        {% if puede('recibos:editar') %}<a class="btn btn-secondary" href="{{ url_for('recibos.editar', recibo_id=recibo.id) }}">{{ icon("edit") }} Editar</a>{% endif %}
+        {% if puede('recibos:eliminar') %}
         <form method="post" action="{{ url_for('recibos.eliminar', recibo_id=recibo.id) }}" style="display:contents"
               data-confirm="El recibo N.º {{ recibo.numero }} se elimina y su número no se vuelve a usar."
               data-confirm-titulo="¿Eliminar este recibo?" data-confirm-boton="Eliminar">
+            {{ csrf() }}
             <button class="btn btn-secondary" type="submit" style="color:var(--danger)">{{ icon("trash") }} Eliminar</button>
         </form>
+        {% endif %}
     </div>
 </div>
 

@@ -42,6 +42,41 @@
         });
     }
 
+    // ---------- Menú de usuario (escritorio) ----------
+    var menuUsuario = document.querySelector("[data-menu-usuario]");
+    if (menuUsuario) {
+        var botonUsuario = menuUsuario.querySelector("[data-usuario-toggle]");
+        var panelUsuario = menuUsuario.querySelector("[data-usuario-panel]");
+        var cambiarUsuario = function (abrir) {
+            panelUsuario.classList.toggle("abierto", abrir);
+            botonUsuario.setAttribute("aria-expanded", abrir ? "true" : "false");
+        };
+        botonUsuario.addEventListener("click", function () {
+            cambiarUsuario(!panelUsuario.classList.contains("abierto"));
+        });
+        document.addEventListener("click", function (e) {
+            if (!menuUsuario.contains(e.target)) { cambiarUsuario(false); }
+        });
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && panelUsuario.classList.contains("abierto")) {
+                cambiarUsuario(false);
+                botonUsuario.focus();
+            }
+        });
+    }
+
+    // ---------- Mostrar / ocultar contraseña ----------
+    document.querySelectorAll("[data-mostrar-clave]").forEach(function (boton) {
+        boton.addEventListener("click", function () {
+            var campo = document.getElementById(boton.getAttribute("data-mostrar-clave"));
+            if (!campo) { return; }
+            var mostrar = campo.type === "password";
+            campo.type = mostrar ? "text" : "password";
+            boton.querySelector("[data-ojo-cerrado]").hidden = mostrar;
+            boton.querySelector("[data-ojo-abierto]").hidden = !mostrar;
+        });
+    });
+
     // ---------- Avisos ----------
     document.querySelectorAll("[data-toast]").forEach(function (toast) {
         var cerrar = function () { toast.remove(); };

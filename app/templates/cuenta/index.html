@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, campo %}
+{% block titulo %}Mi cuenta{% endblock %}
+{% block contenido %}
+<div class="page-head">
+    <div class="titulo">
+        <h1>Mi cuenta</h1>
+        <p class="sub">{{ current_user.nombre_visible }} · <span class="badge">{{ ROLES[current_user.rol] }}</span></p>
+    </div>
+</div>
+
+{% if obligatorio %}
+<div class="callout" role="alert" style="margin-bottom:16px">
+    {{ icon("alert") }}
+    <span><strong>Tenés que cambiar tu contraseña para continuar.</strong> Elegí una nueva y después vas a poder usar el sistema.</span>
+</div>
+{% endif %}
+
+<div class="backup-grid">
+    <section class="card card-pad">
+        <div class="card-head"><h2>{{ icon("key") }} Cambiar contraseña</h2></div>
+        {% if error_clave %}<div class="callout callout-error" role="alert" style="margin-bottom:14px">{{ icon("alert") }} <span>{{ error_clave }}</span></div>{% endif %}
+        <form method="post" action="{{ url_for('cuenta.clave') }}" class="stack" data-lock>
+            {{ csrf() }}
+            {% if obligatorio %}<input type="hidden" name="volver" value="inicio">{% endif %}
+            <div class="field">
+                <label for="f-actual">Contraseña actual</label>
+                <input id="f-actual" type="password" name="actual" required autocomplete="current-password">
+            </div>
+            <div class="field">
+                <label for="f-nueva">Contraseña nueva</label>
+                <div class="input-clave">
+                    <input id="f-nueva" type="password" name="nueva" required minlength="8" autocomplete="new-password">
+                    <button type="button" class="btn-ojo" data-mostrar-clave="f-nueva" aria-label="Mostrar u ocultar la contraseña">
+                        <span data-ojo-cerrado>{{ icon("eye") }}</span><span data-ojo-abierto hidden>{{ icon("eye-off") }}</span>
+                    </button>
+                </div>
+                <span class="hint">Mínimo 8 caracteres.</span>
+            </div>
+            <div class="field">
+                <label for="f-repetida">Repetir contraseña nueva</label>
+                <input id="f-repetida" type="password" name="repetida" required minlength="8" autocomplete="new-password">
+            </div>
+            <button class="btn" type="submit">{{ icon("check") }} Guardar contraseña</button>
+        </form>
+    </section>
+
+    <section class="card card-pad">
+        <div class="card-head"><h2>{{ icon("user") }} Datos de la cuenta</h2></div>
+        {% if current_user.es_admin %}
+            {% if error_datos %}<div class="callout callout-error" role="alert" style="margin-bottom:14px">{{ icon("alert") }} <span>{{ error_datos }}</span></div>{% endif %}
+            <form method="post" action="{{ url_for('cuenta.datos') }}" class="stack" data-lock>
+                {{ csrf() }}
+                {{ campo("Nombre", "nombre", valores.nombre if valores else current_user.nombre, requerido=True) }}
+                {{ campo("Usuario (para ingresar)", "usuario", valores.usuario if valores else current_user.usuario, requerido=True, extra='autocapitalize="none" spellcheck="false" autocomplete="off"') }}
+                <button class="btn btn-secondary" type="submit">{{ icon("check") }} Guardar datos</button>
+            </form>
+        {% else %}
+            <dl class="detalles" style="grid-template-columns:1fr">
+                <div><dt>Nombre</dt><dd>{{ current_user.nombre_visible }}</dd></div>
+                <div><dt>Usuario</dt><dd>{{ current_user.usuario }}</dd></div>
+                <div><dt>Rol</dt><dd>{{ ROLES[current_user.rol] }}</dd></div>
+                <div><dt>Último ingreso</dt><dd>{{ current_user.ultimo_ingreso|fecha_hora }}</dd></div>
+            </dl>
+            <p class="hint" style="margin-top:12px">Tu nombre y usuario los administra un administrador.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

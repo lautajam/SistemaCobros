@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf %}
+{% block titulo %}Usuarios{% endblock %}
+{% block contenido %}
+<div class="page-head">
+    <div class="titulo">
+        <h1>Usuarios</h1>
+        <p class="sub">Administradores y técnicos del sistema.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn" href="{{ url_for('usuarios.nuevo') }}">{{ icon("user-plus") }} Nuevo técnico</a>
+    </div>
+</div>
+
+<div class="table-wrap">
+    <table class="table">
+        <thead>
+            <tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th class="col-ancha">Último ingreso</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for u in usuarios %}
+            <tr>
+                <td class="nombre principal" data-label="Nombre">{{ u.nombre_visible }}{% if u.id == current_user.id %} <span class="badge">Vos</span>{% endif %}</td>
+                <td data-label="Usuario">{{ u.usuario }}</td>
+                <td data-label="Rol"><span class="badge {{ 'badge-rol-admin' if u.rol == 'admin' else '' }}">{{ ROLES[u.rol] }}</span></td>
+                <td data-label="Estado"><span class="estado-lista">
+                    {% if u.activo %}<span class="badge badge-verde">Activo</span>{% else %}<span class="badge badge-gris">Desactivado</span>{% endif %}
+                    {% if u.debe_cambiar_password %}<span class="badge badge-aviso" title="Tiene que cambiar su contraseña al ingresar">Clave pendiente</span>{% endif %}
+                </span></td>
+                <td class="col-ancha" data-label="Último ingreso">{{ u.ultimo_ingreso|fecha_hora }}</td>
+                <td class="acciones">
+                    {% if u.id == current_user.id %}
+                        <a class="btn btn-secondary btn-sm" href="{{ url_for('cuenta.index') }}">{{ icon("user") }} Mi cuenta</a>
+                    {% else %}
+                        {% if u.rol == 'tecnico' %}
+                        <a class="btn btn-secondary btn-sm" href="{{ url_for('usuarios.editar', usuario_id=u.id) }}">{{ icon("edit") }} Editar</a>
+                        {% endif %}
+                        <a class="btn btn-secondary btn-sm" href="{{ url_for('usuarios.clave', usuario_id=u.id) }}">{{ icon("key") }} Contraseña</a>
+                        {% if u.rol == 'tecnico' %}
+                        <form method="post" action="{{ url_for('usuarios.estado', usuario_id=u.id) }}" style="display:contents"
+                              {% if u.activo %}data-confirm="«{{ u.nombre_visible }}» ya no va a poder ingresar. Su historial se conserva."
+                              data-confirm-titulo="¿Desactivar técnico?" data-confirm-boton="Desactivar"{% endif %}>
+                            {{ csrf() }}
+                            <button type="submit" class="btn btn-secondary btn-sm">{{ "Desactivar" if u.activo else "Activar" }}</button>
+                        </form>
+                        <form method="post" action="{{ url_for('usuarios.eliminar', usuario_id=u.id) }}" style="display:contents"
+                              data-confirm="Se elimina al técnico «{{ u.nombre_visible }}». Si tiene boletos o recibos a su nombre no se puede eliminar (desactivalo)."
+                              data-confirm-titulo="¿Eliminar técnico?" data-confirm-boton="Eliminar">
+                            {{ csrf() }}
+                            <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger)" aria-label="Eliminar a {{ u.nombre_visible }}">{{ icon("trash") }}</button>
+                        </form>
+                        {% endif %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

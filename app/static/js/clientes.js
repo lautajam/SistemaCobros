@@ -7,6 +7,11 @@
 (function () {
     "use strict";
 
+    function tokenCsrf() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute("content") : "";
+    }
+
     function iniciar(raiz) {
         var q = function (sel) { return raiz.querySelector(sel); };
         var hidden = q(".hidden-cliente-id");
@@ -170,7 +175,7 @@
             boton.disabled = true;
             fetch("/clientes/api/crear-rapido", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "X-CSRFToken": tokenCsrf() },
                 body: JSON.stringify(datos)
             })
                 .then(function (r) { return r.json().then(function (cuerpo) { return { ok: r.ok, cuerpo: cuerpo }; }); })

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, campo, archivo %}
+{% from "_macros.html" import icon, campo, archivo, csrf %}
 {% block titulo %}Configuración{% endblock %}
 {% block contenido %}
 <div class="page-head">
@@ -10,6 +10,7 @@
 </div>
 
 <form class="card card-pad" method="post" enctype="multipart/form-data" data-lock>
+    {{ csrf() }}
     <div class="form-section">
         <h2>{{ icon("tool") }} Datos del service</h2>
         <div class="form-grid cols-2">

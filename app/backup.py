@@ -102,7 +102,13 @@ def crear_backup_para_descargar():
             args, entorno = _conexion_pg()
             volcado = os.path.join(carpeta, "db.dump")
             _ejecutar(
-                ["pg_dump", "-Fc", "--no-owner", "--no-privileges", *args, "-f", volcado],
+                [
+                    "pg_dump", "-Fc", "--no-owner", "--no-privileges",
+                    # Estas tablas se crean vacías: un backup no debe traer sesiones abiertas
+                    # (que "revivirían" al restaurar) ni la clave secreta ni intentos de ingreso.
+                    "--exclude-table-data=sesiones", "--exclude-table-data=intentos_login", "--exclude-table-data=ajustes",
+                    *args, "-f", volcado,
+                ],
                 entorno, "El volcado de la base de datos",
             )
             info = _info_db()
@@ -209,16 +215,29 @@ def restaurar_backup(ruta_zip):
             with tempfile.TemporaryDirectory() as tmpdir:
                 with zipfile.ZipFile(ruta_zip) as zf:
                     zf.extract("db.dump", tmpdir)
+                    datos_sql = os.path.join(tmpdir, "datos.sql")
+                    guion = os.path.join(tmpdir, "restaurar.sql")
                     _ejecutar(
-                        [
-                            "pg_restore", "--clean", "--if-exists", "--no-owner", "--no-privileges",
-                            "--single-transaction", "--exit-on-error", *args,
-                            os.path.join(tmpdir, "db.dump"),
-                        ],
+                        ["pg_restore", "--no-owner", "--no-privileges", "-f", datos_sql, os.path.join(tmpdir, "db.dump")],
+                        entorno, "La lectura del backup",
+                    )
+                    # Todo en UNA transacción: se borra el esquema completo y se carga el del
+                    # backup. Así no quedan tablas de la versión actual que el backup no tenga
+                    # (por ejemplo, usuarios si el backup es anterior al login), y si algo
+                    # falla no se toca nada.
+                    with open(guion, "w", encoding="utf-8") as salida, open(datos_sql, encoding="utf-8") as origen:
+                        salida.write("DROP SCHEMA public CASCADE;\nCREATE SCHEMA public;\n")
+                        shutil.copyfileobj(origen, salida)
+                    _ejecutar(
+                        ["psql", "-q", "-v", "ON_ERROR_STOP=1", "--single-transaction", *args, "-f", guion],
                         entorno, "La restauración de la base de datos",
                     )
                     _restaurar_documentos(zf)
             _migrar_a_ultima()
+            # Un backup anterior al login no trae usuarios: se vuelve a crear el admin inicial.
+            from . import auth
+
+            auth.asegurar_admin_inicial()
         finally:
             RESTORING = False
             db.dispose()

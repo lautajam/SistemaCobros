@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, campo %}
+{% block titulo %}Contraseña de {{ usuario.nombre_visible }}{% endblock %}
+{% block contenido %}
+<a class="back-link" href="{{ url_for('usuarios.lista') }}">{{ icon("arrow-left") }} Usuarios</a>
+<div class="page-head">
+    <div class="titulo">
+        <h1>Nueva contraseña</h1>
+        <p class="sub">Para {{ usuario.nombre_visible }} ({{ usuario.usuario }}). Se cierran sus sesiones abiertas.</p>
+    </div>
+</div>
+
+{% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} <span>{{ error }}</span></div>{% endif %}
+
+<form class="card card-pad" method="post" data-lock>
+    {{ csrf() }}
+    <div class="stack" style="gap:14px">
+        {{ campo("Contraseña nueva", "password", "", tipo="password", requerido=True, extra='minlength="8" autocomplete="new-password"') }}
+        <label class="check"><input type="checkbox" name="debe_cambiar" value="1" checked> Que la cambie en su próximo ingreso</label>
+    </div>
+    <div class="form-actions">
+        <button class="btn" type="submit">{{ icon("check") }} Guardar contraseña</button>
+        <a class="btn btn-secondary" href="{{ url_for('usuarios.lista') }}">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

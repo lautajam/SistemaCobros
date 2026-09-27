@@ -219,11 +219,11 @@ img, svg { max-width: 100%; }
     .nav {
         position: static; display: flex !important; align-items: center; gap: 4px;
         background: transparent; border: 0; box-shadow: none; padding: 0;
-        max-height: none; overflow: visible; flex-direction: row-reverse;
+        max-height: none; overflow: visible; flex-direction: row;
     }
     .nav .nav-lista { flex-direction: row; gap: 2px; }
     .nav .nav-link { padding: 8px 12px; min-height: 40px; font-size: .93rem; }
-    .nav .nav-acciones { display: flex; margin: 0 0 0 8px; }
+    .nav .nav-acciones { display: flex; margin: 0 8px; }
 }
 
 /* ---------- 5. Botones ---------- */
@@ -322,7 +322,7 @@ img, svg { max-width: 100%; }
 .hint { font-size: .82rem; color: var(--muted); }
 
 .input, .field input[type=text], .field input[type=email], .field input[type=date],
-.field input[type=time], .field input[type=number], .field input[type=search], .field input[type=tel],
+.field input[type=time], .field input[type=number], .field input[type=search], .field input[type=tel], .field input[type=password],
 .field select, .field textarea {
     width: 100%; min-height: 44px; padding: 10px 12px;
     border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
@@ -337,7 +337,7 @@ img, svg { max-width: 100%; }
 .field input:user-invalid, .field select:user-invalid { border-color: var(--danger); }
 @media (min-width: 900px) {
     .input, .field input[type=text], .field input[type=email], .field input[type=date],
-    .field input[type=time], .field input[type=number], .field input[type=search], .field input[type=tel],
+    .field input[type=time], .field input[type=number], .field input[type=search], .field input[type=tel], .field input[type=password],
     .field select { min-height: 40px; font-size: .95rem; }
 }
 
@@ -444,7 +444,7 @@ details.mas > .contenido-mas { padding: 4px 14px 16px; display: grid; gap: 14px;
 .mensaje-error { color: var(--danger); font-size: .88rem; font-weight: 550; }
 
 /* ---------- 9. Tablas (en celular se convierten en tarjetas) ---------- */
-.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { padding: 12px 16px; text-align: left; vertical-align: middle; }
 .table thead th {
@@ -454,8 +454,11 @@ details.mas > .contenido-mas { padding: 4px 14px 16px; display: grid; gap: 14px;
 }
 .table tbody tr + tr td { border-top: 1px solid var(--border); }
 .table tbody tr:hover { background: color-mix(in srgb, var(--primary) 4%, transparent); }
-.table .acciones { text-align: right; white-space: nowrap; }
-.table .acciones .btn { margin-left: 6px; }
+.table .acciones { text-align: right; }
+.table .acciones .btn { margin: 3px 0 3px 6px; }
+.estado-lista { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+/* Columnas de menor prioridad: se ocultan en pantallas medianas para que no se corten las acciones */
+@media (min-width: 720px) and (max-width: 1099px) { .table .col-ancha { display: none; } }
 .table .nombre { font-weight: 600; }
 
 @media (max-width: 719px) {
@@ -475,10 +478,10 @@ details.mas > .contenido-mas { padding: 4px 14px 16px; display: grid; gap: 14px;
     }
     .table td.principal { font-size: 1.05rem; justify-content: flex-start; text-align: left; }
     .table td.principal::before { display: none; }
-    .table td.acciones { justify-content: stretch; padding-top: 10px; }
+    .table td.acciones { justify-content: stretch; padding-top: 10px; flex-wrap: wrap; gap: 8px; }
     .table td.acciones::before { display: none; }
-    .table td.acciones .btn { flex: 1; margin: 0; }
-    .table td.acciones { gap: 8px; }
+    .table td.acciones .btn { flex: 1 1 auto; margin: 0; min-width: 0; }
+    .estado-lista { justify-content: flex-end; }
 }
 
 /* ---------- 10. Búsqueda, pestañas ---------- */
@@ -599,3 +602,67 @@ dialog.modal .modal-acciones .btn { flex: 1 1 120px; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 @media print { .app-header, .toasts, .form-actions { display: none !important; } }
+
+
+/* ---------- 17. Cuenta, usuarios y login ---------- */
+.menu-usuario { position: relative; }
+.usuario-toggle {
+    display: none; align-items: center; gap: 8px;
+    min-height: 40px; padding: 4px 10px 4px 6px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer;
+}
+.usuario-toggle:hover { background: var(--surface-2); }
+.usuario-nombre { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar-mini {
+    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: .85rem;
+}
+/* Celular: el panel va siempre visible dentro del menú desplegable */
+.menu-panel { display: block; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.menu-cabecera { padding: 6px 12px 10px; }
+.menu-cabecera strong, .menu-cabecera small { display: block; overflow-wrap: anywhere; }
+.menu-cabecera small { color: var(--muted); }
+.menu-panel form { margin: 0; }
+.boton-salir {
+    width: 100%; border: 0; background: transparent; text-align: left;
+    font: inherit; font-weight: 550; cursor: pointer; color: var(--danger) !important;
+}
+@media (min-width: 900px) {
+    .usuario-toggle { display: inline-flex; }
+    .menu-panel {
+        display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 60;
+        min-width: 250px; margin: 0; padding: 8px;
+        background: var(--surface); border: 1px solid var(--border-strong);
+        border-radius: var(--radius); box-shadow: var(--shadow-lg);
+    }
+    .menu-panel.abierto { display: block; }
+    .menu-panel .nav-link { display: flex; }
+}
+
+.auth-caja { max-width: 420px; margin: 24px auto 0; }
+@media (min-width: 640px) { .auth-caja { margin-top: 56px; } }
+.auth-cabecera { text-align: center; margin-bottom: 20px; }
+.auth-cabecera h1 { margin-top: 12px; }
+.marca-icono.grande {
+    display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 16px;
+    background: var(--primary); color: var(--on-primary);
+}
+.centrado { text-align: center; margin-top: 14px; font-size: .9rem; }
+.codigo-error { font-size: 3.5rem; font-weight: 800; line-height: 1; color: var(--primary); letter-spacing: -.02em; }
+
+.input-clave { position: relative; }
+.input-clave input { padding-right: 48px !important; }
+.btn-ojo {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    display: grid; place-items: center; width: 40px; height: 40px;
+    border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer;
+}
+.btn-ojo:hover { background: var(--surface-2); color: var(--text); }
+
+.check { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: .95rem; cursor: pointer; }
+.check input { width: 20px; height: 20px; accent-color: var(--primary); }
+
+.badge-gris { background: var(--surface-2); color: var(--muted); }
+.badge-aviso { background: var(--warning-soft); color: var(--warning); }
+.badge-rol-admin { background: var(--primary); color: var(--on-primary); }

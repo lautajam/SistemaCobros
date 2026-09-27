@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, campo %}
+{% block titulo %}{{ "Editar técnico" if tecnico else "Nuevo técnico" }}{% endblock %}
+{% block contenido %}
+<a class="back-link" href="{{ url_for('usuarios.lista') }}">{{ icon("arrow-left") }} Usuarios</a>
+<div class="page-head"><h1>{{ "Editar técnico" if tecnico else "Nuevo técnico" }}</h1></div>
+
+{% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} <span>{{ error }}</span></div>{% endif %}
+
+<form class="card card-pad" method="post" data-lock>
+    {{ csrf() }}
+    <div class="form-section">
+        <h2>{{ icon("user") }} Datos</h2>
+        <div class="form-grid cols-2">
+            {{ campo("Nombre completo", "nombre", valores.nombre, requerido=True, extra='autocomplete="off"') }}
+            {{ campo("Usuario (para ingresar)", "usuario", valores.usuario, requerido=True, extra='autocapitalize="none" spellcheck="false" autocomplete="off"') }}
+        </div>
+        <p class="hint" style="margin-top:8px">El usuario usa letras minúsculas, números, punto, guion o guion bajo (3 a 30 caracteres).</p>
+    </div>
+
+    {% if not tecnico %}
+    <div class="form-section">
+        <h2>{{ icon("key") }} Contraseña inicial</h2>
+        <div class="stack" style="gap:12px">
+            {{ campo("Contraseña", "password", "", tipo="password", requerido=True, extra='minlength="8" autocomplete="new-password"') }}
+            <label class="check"><input type="checkbox" name="debe_cambiar" value="1" {{ "checked" if valores.debe_cambiar }}> Que la cambie en su primer ingreso</label>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="form-actions">
+        <button class="btn" type="submit">{{ icon("check") }} {{ "Guardar cambios" if tecnico else "Crear técnico" }}</button>
+        <a class="btn btn-secondary" href="{{ url_for('usuarios.lista') }}">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

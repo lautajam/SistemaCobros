@@ -21,9 +21,23 @@ services:
     build: .
     image: service-app:latest
     ports:
-      - "5000:5000"
+      # Solo accesible desde esta PC. Para ponerlo en línea NO abras este puerto:
+      # se publica detrás de un proxy con HTTPS (ver README, "Puesta en línea").
+      - "127.0.0.1:5000:5000"
     environment:
-      - SECRET_KEY=${SECRET_KEY:-service-tecnico-dev}
+      # development (por defecto) o production. En production: SECRET_KEY obligatoria,
+      # cookies solo por HTTPS y no se crea el admin por defecto (admin/admin).
+      - APP_ENV=${APP_ENV:-development}
+      # Clave que firma las sesiones. Vacía = se genera sola (solo en development).
+      - SECRET_KEY=${SECRET_KEY:-}
+      # Admin inicial (opcional). Sin ADMIN_PASSWORD, en development se crea admin/admin
+      # y obliga a cambiar la contraseña en el primer ingreso.
+      - ADMIN_USUARIO=${ADMIN_USUARIO:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      # Cantidad de proxies delante de la app (1 si hay Caddy/nginx). 0 = ninguno.
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-0}
+      # Cookies solo por HTTPS. Por defecto: sí en production, no en development.
+      - COOKIE_SECURE=${COOKIE_SECURE:-}
       - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-service_app}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-service_app}
       - TZ=${TZ:-America/Argentina/Buenos_Aires}
     volumes:

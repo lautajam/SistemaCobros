@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf %}
+{% block titulo %}Ingresar{% endblock %}
+{% block contenido %}
+<div class="auth-caja">
+    <div class="card card-pad">
+        <div class="auth-cabecera">
+            <span class="marca-icono grande">{{ icon("lock", "icon-lg") }}</span>
+            <h1>Ingresar</h1>
+            <p class="sub muted">{{ service_cfg.nombre }}</p>
+        </div>
+
+        {% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} <span>{{ error }}</span></div>{% endif %}
+
+        <form method="post" class="stack" data-lock>
+            {{ csrf() }}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <div class="field">
+                <label for="f-usuario">Usuario</label>
+                <input id="f-usuario" type="text" name="usuario" value="{{ usuario }}" required autofocus
+                       autocomplete="username" autocapitalize="none" spellcheck="false">
+            </div>
+            <div class="field">
+                <label for="f-password">Contraseña</label>
+                <div class="input-clave">
+                    <input id="f-password" type="password" name="password" required autocomplete="current-password">
+                    <button type="button" class="btn-ojo" data-mostrar-clave="f-password" aria-label="Mostrar u ocultar la contraseña">
+                        <span data-ojo-cerrado>{{ icon("eye") }}</span><span data-ojo-abierto hidden>{{ icon("eye-off") }}</span>
+                    </button>
+                </div>
+            </div>
+            <button class="btn btn-block" type="submit">{{ icon("check") }} Entrar</button>
+        </form>
+    </div>
+    <p class="muted centrado">¿No tenés usuario? Pedíselo a un administrador.</p>
+</div>
+{% endblock %}

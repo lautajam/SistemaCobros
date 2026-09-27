@@ -2,6 +2,7 @@ import os
 
 from flask import Blueprint, Response, redirect, render_template, request, url_for
 
+from ..auth import permiso
 from ..db import Session
 from ..models import Configuracion
 
@@ -50,6 +51,7 @@ def get_logo():
 
 
 @bp.route("/", methods=["GET", "POST"])
+@permiso("configuracion:gestionar")
 def form():
     if request.method == "POST":
         fila = Session.get(Configuracion, 1) or Configuracion(id=1)
@@ -71,6 +73,7 @@ def form():
 
 
 @bp.route("/logo")
+@permiso("configuracion:gestionar")
 def logo():
     datos = get_logo()
     if not datos:

@@ -36,3 +36,8 @@
     <span class="file-name muted" data-file-name>Ningún archivo elegido</span>
 </label>
 {%- endmacro %}
+
+{# Token anti-CSRF: va dentro de TODO formulario que use method="post". #}
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}

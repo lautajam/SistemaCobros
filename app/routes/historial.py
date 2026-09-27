@@ -3,6 +3,7 @@ from datetime import date
 from flask import Blueprint, render_template, request
 from sqlalchemy import Integer, String, cast, or_, select
 
+from ..auth import permiso
 from ..db import Session
 from ..models import Boleto, Cliente, Recibo
 
@@ -42,6 +43,7 @@ def _campos_recibo(modelo):
 
 
 @bp.route("/")
+@permiso("historial:ver")
 def index():
     tab = request.args.get("tab", "boletos")
     q = (request.args.get("q") or "").strip()

@@ -10,7 +10,11 @@ consumen las plantillas de la interfaz y las de los PDF.
 import datetime as dt
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKey, Integer, LargeBinary, Numeric, String, Text, UniqueConstraint
+from flask_login import UserMixin
+from sqlalchemy import (
+    Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text,
+    UniqueConstraint, func, text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Columnas de cada documento, usadas para armar los documentos en blanco.
@@ -78,6 +82,7 @@ class Boleto(Serializable, Base):
     id: Mapped[str] = mapped_column(String(20), primary_key=True)
     numero: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     cliente_id: Mapped[str] = mapped_column(ForeignKey("clientes.id"), nullable=False, index=True)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"), index=True)
     fecha: Mapped[dt.date] = mapped_column(Date, nullable=False)
     hora: Mapped[str] = _texto()
     equipo: Mapped[str] = _texto()
@@ -98,6 +103,7 @@ class Recibo(Serializable, Base):
     numero: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     cliente_id: Mapped[str] = mapped_column(ForeignKey("clientes.id"), nullable=False, index=True)
     boleto_id: Mapped[str | None] = mapped_column(ForeignKey("boletos.id", ondelete="SET NULL"), index=True)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"), index=True)
     fecha: Mapped[dt.date] = mapped_column(Date, nullable=False)
     trabajo: Mapped[str] = _texto()
     descripcion: Mapped[str] = _texto()
@@ -149,6 +155,68 @@ class Contador(Base):
 
     tipo: Mapped[str] = mapped_column(String(20), primary_key=True)
     ultimo_numero: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+
+class Usuario(UserMixin, Base):
+    """Usuario del sistema. La contraseña se guarda solo como hash."""
+
+    __tablename__ = "usuarios"
+    __table_args__ = (CheckConstraint("rol IN ('admin', 'tecnico')", name="ck_usuarios_rol"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usuario: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    nombre: Mapped[str] = _texto()
+    rol: Mapped[str] = mapped_column(String(20), nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
+    debe_cambiar_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    creado: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    ultimo_ingreso: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+    @property
+    def is_active(self):
+        return self.activo
+
+    @property
+    def es_admin(self):
+        return self.rol == "admin"
+
+    @property
+    def nombre_visible(self):
+        return self.nombre or self.usuario
+
+
+class SesionActiva(Base):
+    """Sesión iniciada. La cookie solo guarda el token; si la fila se borra
+    (cerrar sesión, cambiar la clave, desactivar al usuario) la cookie deja
+    de valer aunque alguien tenga una copia."""
+
+    __tablename__ = "sesiones"
+
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
+    creado: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    ultimo_uso: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class IntentoLogin(Base):
+    """Intentos de ingreso fallidos (para bloquear por usuario y por IP)."""
+
+    __tablename__ = "intentos_login"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ip: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    usuario: Mapped[str] = mapped_column(String(50), nullable=False, default="", server_default="")
+    momento: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Ajuste(Base):
+    """Pares clave/valor internos (por ejemplo, la clave secreta de sesiones)."""
+
+    __tablename__ = "ajustes"
+
+    clave: Mapped[str] = mapped_column(String(50), primary_key=True)
+    valor: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 def format_cliente_id(numero: int) -> str:

@@ -27,7 +27,8 @@
     <a class="atajo" href="{{ url_for('historial.index') }}">{{ icon("clock") }} Historial</a>
     <a class="atajo" href="{{ url_for('blancos.boleto') }}">{{ icon("file") }} Boleto en blanco</a>
     <a class="atajo" href="{{ url_for('blancos.recibo') }}">{{ icon("file") }} Recibo en blanco</a>
-    <a class="atajo" href="{{ url_for('backups.index') }}">{{ icon("database") }} Backups</a>
-    <a class="atajo" href="{{ url_for('configuracion.form') }}">{{ icon("settings") }} Configuración</a>
+    {% if puede('usuarios:gestionar') %}<a class="atajo" href="{{ url_for('usuarios.lista') }}">{{ icon("shield") }} Usuarios</a>{% endif %}
+    {% if puede('backups:gestionar') %}<a class="atajo" href="{{ url_for('backups.index') }}">{{ icon("database") }} Backups</a>{% endif %}
+    {% if puede('configuracion:gestionar') %}<a class="atajo" href="{{ url_for('configuracion.form') }}">{{ icon("settings") }} Configuración</a>{% endif %}
 </div>
 {% endblock %}

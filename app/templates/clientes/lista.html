@@ -37,7 +37,7 @@
                 <td data-label="Localidad">{{ c.localidad or "—" }}</td>
                 <td class="acciones">
                     <a class="btn btn-secondary btn-sm" href="{{ url_for('clientes.detalle', cliente_id=c.id) }}">Ver</a>
-                    <a class="btn btn-secondary btn-sm" href="{{ url_for('clientes.editar', cliente_id=c.id) }}">{{ icon("edit") }} Editar</a>
+                    {% if puede('clientes:editar') %}<a class="btn btn-secondary btn-sm" href="{{ url_for('clientes.editar', cliente_id=c.id) }}">{{ icon("edit") }} Editar</a>{% endif %}
                 </td>
             </tr>
             {% endfor %}

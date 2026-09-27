@@ -4,11 +4,13 @@ pdfkit>=1.0
 SQLAlchemy>=2.0,<3
 psycopg[binary]>=3.1
 alembic>=1.13
+Flask-Login>=0.6.3
+Flask-WTF>=1.2
 gunicorn>=21.2; platform_system != "Windows"
 
 # gunicorn no corre en Windows: se usa solo dentro del contenedor Docker
 # (Linux). La app está pensada para correr con "docker compose up".
 
-# pdfkit depende del binario del sistema "wkhtmltopdf" y los backups del
-# programa "pg_dump"/"pg_restore" (cliente de PostgreSQL). Ambos ya vienen
-# instalados dentro de la imagen Docker (ver Dockerfile).
+# pdfkit depende del binario del sistema "wkhtmltopdf" y los backups de los
+# programas "pg_dump"/"pg_restore"/"psql" (cliente de PostgreSQL). Todos ya
+# vienen instalados dentro de la imagen Docker (ver Dockerfile).

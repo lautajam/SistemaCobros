@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, campo, area %}
+{% from "_macros.html" import icon, campo, area, csrf %}
 {% block titulo %}{{ "Editar recibo" if recibo else "Nuevo recibo" }}{% endblock %}
 {% block contenido %}
 <a class="back-link" href="{{ url_for('recibos.detalle', recibo_id=recibo.id) if recibo else url_for('main.index') }}">{{ icon("arrow-left") }} Volver</a>
@@ -19,6 +19,7 @@
 {% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} {{ error }}</div>{% endif %}
 
 <form class="card card-pad" method="post" data-lock>
+    {{ csrf() }}
     {% if boleto %}<input type="hidden" name="boleto_id" value="{{ boleto.id }}">{% endif %}
 
     <div class="form-section">
