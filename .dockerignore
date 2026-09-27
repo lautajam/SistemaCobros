@@ -1,0 +1,21 @@
+.git
+.gitignore
+__pycache__
+**/__pycache__
+*.pyc
+venv
+.venv
+env
+
+# Datos y documentos: se montan como volúmenes en runtime, no deben
+# viajar dentro de la imagen construida.
+data
+documentos
+
+.vscode
+.idea
+*.md
+
+Dockerfile
+docker-compose.yml
+.dockerignore

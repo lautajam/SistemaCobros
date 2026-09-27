@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+ENV/
+
+# Docker
+docker-compose.override.yml
+
+# Variables de entorno / secretos
+.env
+.env.*
+!.env.example
+
+# Datos persistentes de la app: se crean solos en el primer arranque
+# (ver app/__init__.py -> _inicializar_almacenamiento), no se versionan.
+/data/**/*.csv
+/data/configuracion/logo/*
+
+# PDFs generados (documentos/boletos, documentos/recibos, documentos/blancos)
+/documentos/**/*.pdf
+
+# Editores / SO
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,44 @@
+services:
+  app:
+    build: .
+    image: service-app:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-service-tecnico-dev}
+    volumes:
+      - ./data:/app/data
+      - ./documentos:/app/documentos
+    networks:
+      - service-network
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # Futuro: base de datos real. Hoy la app persiste todo en CSV
+  # (ver app/csv_utils.py) y este servicio no se usa. El día que se migre esa
+  # capa a PostgreSQL: descomentar este bloque, la variable DATABASE_URL de
+  # "app" (más abajo) y el volumen "db_data" al final del archivo.
+  # -------------------------------------------------------------------------
+  # db:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     - POSTGRES_DB=service_app
+  #     - POSTGRES_USER=service_app
+  #     - POSTGRES_PASSWORD=changeme
+  #   volumes:
+  #     - db_data:/var/lib/postgresql/data
+  #   networks:
+  #     - service-network
+  #   restart: unless-stopped
+  #
+  # Y en "app.environment" agregar:
+  #   - DATABASE_URL=postgresql://service_app:changeme@db:5432/service_app
+  # y en "app.depends_on":
+  #   - db
+
+networks:
+  service-network:
+    driver: bridge
+
+# volumes:
+#   db_data:

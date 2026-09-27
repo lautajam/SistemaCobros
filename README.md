@@ -183,6 +183,35 @@ La primera vez que se ejecuta, la aplicación crea automáticamente todas las
 carpetas y archivos CSV necesarios dentro de `data/` y `documentos/`. No hace
 falta ninguna configuración adicional ni instalar una base de datos.
 
+### Ejecutar con Docker (alternativa)
+
+No hace falta instalar Python ni `wkhtmltopdf` en el equipo: la imagen ya
+trae todo lo necesario.
+
+```bash
+docker compose up --build
+```
+
+Luego abrí `http://127.0.0.1:5000`, igual que antes. `data/` y `documentos/`
+se montan como carpetas del propio equipo (bind mount): los CSV y los PDF
+generados quedan en las mismas carpetas de siempre y sobreviven a
+`docker compose down` o a reconstruir la imagen.
+
+**Nota sobre concurrencia:** el contenedor corre a propósito con un solo
+*worker* de Gunicorn (con varios *threads* adentro). `csv_utils.py` usa un
+lock en memoria **por proceso** (ver más abajo); varios workers de Gunicorn
+son procesos separados que no comparten ese lock entre sí, lo que podría
+duplicar la numeración de boletos/recibos bajo pedidos concurrentes. Con un
+solo worker se mantiene la misma garantía que ya tenés hoy corriendo
+`python run.py`.
+
+**Preparado para escalar a una base de datos:** `docker-compose.yml` incluye
+un servicio `db` (PostgreSQL) comentado, con su red y variable
+`DATABASE_URL` de ejemplo. El día que se migre la persistencia de CSV a una
+base de datos real, alcanza con descomentarlo — no hace falta rediseñar la
+infraestructura, solo actualizar `csv_utils.py` para que hable con esa base
+en lugar de con archivos CSV.
+
 ### Uso diario
 
 1. Configurá los datos del service (nombre, CUIT, logo, etc.) en **Configuración** — se completan solos en todos los PDF.

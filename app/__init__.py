@@ -8,7 +8,7 @@ from . import counters, csv_utils, models
 def create_app():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = "service-tecnico-dev"
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "service-tecnico-dev")
     app.config["BASE_DIR"] = base_dir
 
     data_dir = os.path.join(base_dir, "data")

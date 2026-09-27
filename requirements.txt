@@ -1,6 +1,10 @@
 Flask>=2.3,<4
 Jinja2>=3.1
 pdfkit>=1.0
+gunicorn>=21.2; platform_system != "Windows"
+
+# gunicorn no corre en Windows: se usa solo dentro del contenedor Docker
+# (Linux). En Windows seguís usando "python run.py" como siempre.
 
 # pdfkit depende del binario del sistema "wkhtmltopdf".
 # Instalarlo por separado según el sistema operativo:
