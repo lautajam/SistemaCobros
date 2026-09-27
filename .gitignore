@@ -19,7 +19,7 @@ docker-compose.override.yml
 !.env.example
 
 # Backups (contienen todos los datos de clientes: no subir al repositorio)
-/backups/
+*.zip
 
 # PDFs generados (documentos/boletos, documentos/recibos, documentos/blancos)
 /documentos/**/*.pdf

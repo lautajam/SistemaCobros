@@ -5,7 +5,7 @@ from flask import Flask
 from . import counters, db, settings
 
 
-def create_app(start_scheduler=True):
+def create_app():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "service-tecnico-dev")
@@ -20,20 +20,11 @@ def create_app(start_scheduler=True):
     app.config["DOC_TEMPLATES_DIR"] = os.path.join(base_dir, "templates")
     app.config["DOCUMENTOS_DIR"] = os.path.join(base_dir, "documentos")
 
-    app.config["BACKUP_DIR"] = os.environ.get("BACKUP_DIR", os.path.join(base_dir, "backups"))
-    app.config["BACKUP_INTERVAL_HOURS"] = float(os.environ.get("BACKUP_INTERVAL_HOURS", "6"))
-    app.config["BACKUP_KEEP_AUTO"] = int(os.environ.get("BACKUP_KEEP_AUTO", "10"))
-
     db.init_db(app)
     _inicializar_carpetas(app)
     _registrar_blueprints(app)
     _registrar_context_processor(app)
     _registrar_modo_mantenimiento(app)
-
-    if start_scheduler and os.environ.get("BACKUP_SCHEDULER", "1") == "1":
-        from . import backup
-
-        backup.start_scheduler(app)
 
     return app
 
@@ -44,7 +35,6 @@ def _inicializar_carpetas(app):
     for carpeta in ("boletos", "recibos", os.path.join("blancos", "boletos"), os.path.join("blancos", "recibos")):
         os.makedirs(os.path.join(app.config["DOCUMENTOS_DIR"], carpeta), exist_ok=True)
     os.makedirs(app.config["DOC_TEMPLATES_DIR"], exist_ok=True)
-    os.makedirs(app.config["BACKUP_DIR"], exist_ok=True)
 
 
 def _registrar_blueprints(app):

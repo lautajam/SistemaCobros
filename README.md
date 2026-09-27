@@ -3,8 +3,8 @@
 Aplicación web local (uso en un solo equipo / red interna) para gestionar
 la recepción de equipos, boletos, recibos y clientes de un service técnico.
 Corre en **Docker** con una base de datos **PostgreSQL** y tiene **backups
-completos** (manuales y automáticos) que se guardan en una carpeta de tu PC,
-fuera de Docker, y se pueden volver a cargar desde la propia app.
+completos y manuales**: se crean con un botón, se guardan donde vos elijas en tu
+PC (fuera de Docker) y se pueden volver a cargar desde la propia app.
 
 ---
 
@@ -26,7 +26,7 @@ fuera de Docker, y se pueden volver a cargar desde la propia app.
 |---|---|---|
 | Base de datos (clientes, boletos, recibos, configuración, logo, contadores) | volumen de Docker `db_data` | No (por eso existen los backups) |
 | PDF generados | carpeta `documentos/` del proyecto | Sí |
-| Backups | carpeta `backups/` del proyecto | Sí |
+| Backups | donde elijas al crearlos (se descargan desde la app) | Sí |
 
 ### Estructura de carpetas
 
@@ -34,11 +34,9 @@ fuera de Docker, y se pueden volver a cargar desde la propia app.
 service-app/
 │
 ├── Dockerfile                 # Imagen de la app (Python + wkhtmltopdf + cliente PostgreSQL)
-├── docker-compose.yml         # Servicios db (PostgreSQL) y app, volúmenes, backups
-├── gunicorn.conf.py           # Un worker + backup automático al apagar
+├── docker-compose.yml         # Servicios db (PostgreSQL) y app, volúmenes
+├── gunicorn.conf.py           # Servidor (un solo worker)
 ├── alembic.ini
-├── iniciar.bat                # Windows: levanta todo y abre el navegador
-├── detener.bat                # Windows: detiene la app (con backup)
 ├── .env.example               # Variables opcionales (copiar como .env para usarlas)
 ├── run.py                     # Punto de entrada (lo carga gunicorn)
 ├── requirements.txt
@@ -50,7 +48,7 @@ service-app/
 │   ├── models.py              # Tablas de la base + formato de IDs
 │   ├── repo.py                # Acceso a datos (get / listar / insertar / actualizar / eliminar)
 │   ├── counters.py            # Numeración correlativa independiente y persistente
-│   ├── backup.py              # Crear / listar / restaurar backups + backups automáticos
+│   ├── backup.py              # Crear (para descarga) y restaurar backups
 │   ├── pdf_utils.py           # Motor Jinja2 + conversión HTML -> PDF, normalización de nombres
 │   ├── documentos.py          # Arma el contexto y guarda cada PDF en su carpeta
 │   ├── routes/                # Blueprints (uno por sección de la app)
@@ -61,7 +59,7 @@ service-app/
 │   │   ├── historial.py       # Historial general con pestañas y filtros
 │   │   ├── configuracion.py   # Datos del service + logo
 │   │   ├── blancos.py         # Boletos/recibos en blanco
-│   │   └── backups.py         # Pantalla de backups: crear, descargar, restaurar
+│   │   └── backups.py         # Pantalla de backups: crear (descarga) y restaurar (subir un .zip)
 │   ├── templates/             # Plantillas HTML de la INTERFAZ
 │   └── static/                # CSS y JS de la interfaz
 │
@@ -72,12 +70,10 @@ service-app/
 │   ├── recibo.html
 │   └── README.md              # Variables disponibles en las plantillas
 │
-├── documentos/                # PDF generados (montada desde tu PC)
-│   ├── boletos/
-│   ├── recibos/
-│   └── blancos/{boletos,recibos}/
-│
-└── backups/                   # Backups (.zip), montada desde tu PC (no se sube a git)
+└── documentos/                # PDF generados (montada desde tu PC)
+    ├── boletos/
+    ├── recibos/
+    └── blancos/{boletos,recibos}/
 ```
 
 ### Modelo de datos (tablas)
@@ -123,7 +119,7 @@ Inicio
  ├─ Clientes -> lista/búsqueda -> ficha de cliente -> historial (boletos + recibos)
  ├─ Historial -> pestañas Boletos/Recibos -> buscar/filtrar -> ver/editar/PDF/eliminar
  ├─ Boleto en blanco / Recibo en blanco -> descarga directa de PDF
- ├─ Backups -> crear / descargar / restaurar
+ ├─ Backups -> crear (se descarga donde elijas) / subir y restaurar
  └─ Configuración -> datos del service + logo
 ```
 
@@ -156,27 +152,23 @@ http://127.0.0.1:5000
 
 Al iniciar, la app crea sola las tablas de la base (Alembic). Empieza vacía.
 
-### Uso de todos los días (Windows: doble clic)
+### Uso de todos los días
 
-- **`iniciar.bat`**: abre Docker Desktop si hace falta, levanta la app y **abre una pestaña en tu navegador predeterminado** cuando ya está lista. Se puede ejecutar cada vez que quieras usar la app (si ya estaba corriendo, solo abre la pestaña).
-- **`detener.bat`**: detiene la app (**hace un backup** antes de cerrar).
-
-Un contenedor no puede abrir el navegador de tu PC por sí solo; por eso el navegador se abre desde `iniciar.bat` y no cuando se usa `docker compose up` a mano.
-
-Con la terminal:
-
-| Acción | Comando |
+| Acción | Cómo |
 |---|---|
-| Iniciar | `docker compose up` (o `docker compose up -d` para dejarlo en segundo plano) |
-| Detener (**hace un backup**) | `Ctrl+C` en esa terminal, o `docker compose stop` / `docker compose down` |
+| Iniciar | Botón ▶ del contenedor en Docker Desktop, o `docker compose up` (o `docker compose up -d` para dejarlo en segundo plano) |
+| Abrir la app | En el navegador: `http://127.0.0.1:5000` (conviene guardarlo en favoritos) |
+| Detener | `Ctrl+C` en esa terminal, `docker compose stop` / `docker compose down`, o el botón ■ en Docker Desktop |
 | Ver los logs | `docker compose logs -f app` |
 | Reconstruir tras cambiar código | `docker compose up --build` |
+
+Los contenedores se reinician solos cuando Docker Desktop arranca (`restart: unless-stopped`), así que después de prender la PC alcanza con abrir la dirección en el navegador. La app **no abre el navegador por sí sola**: un contenedor no puede abrir programas de tu PC.
 
 > ⚠️ **`docker compose down -v` BORRA la base de datos** (el flag `-v` elimina el volumen `db_data`). Usá `docker compose down` a secas. Si por error se borra, se recupera restaurando un backup (ver abajo).
 
 ### Configuración opcional
 
-Copiá `.env.example` como `.env` y cambiá lo que quieras (contraseña de la base, clave de Flask, cada cuántas horas se hacen los backups automáticos, cuántos se conservan, zona horaria). Sin `.env` se usan los valores por defecto.
+Copiá `.env.example` como `.env` y cambiá lo que quieras (contraseña de la base, clave de Flask, zona horaria). Sin `.env` se usan los valores por defecto.
 
 ### Uso diario de la app
 
@@ -190,46 +182,38 @@ Copiá `.env.example` como `.env` y cambiá lo que quieras (contraseña de la ba
 
 ## 3. Backups
 
-Como la base de datos vive dentro de un volumen de Docker, **los backups son lo que protege tu información**.
+Como la base de datos vive dentro de un volumen de Docker, **los backups son lo que protege tu información**. Son **totalmente manuales**: la app no hace backups por su cuenta, solo cuando vos lo pedís.
 
 ### Qué incluye un backup
 
-Un archivo `.zip` con **todo**: la base de datos completa (clientes, boletos, recibos, configuración, logo, numeración), los PDF generados y un `manifest.json` (fecha, tipo, versión del esquema, cantidades).
+Un archivo `.zip` con **todo**: la base de datos completa (clientes, boletos, recibos, configuración, logo, numeración), los PDF generados y un `manifest.json` (fecha, versión del esquema, cantidades).
 
-### Dónde se guardan
+### Crear un backup
 
-En la carpeta **`backups/`** del proyecto, en tu PC (fuera de Docker). Nombres como `backup_2026-09-26_22-57-33_manual.zip`; el final indica el tipo:
+En la pantalla **Backups**, botón **Crear backup**: el backup se arma y se **descarga como un archivo .zip normal del navegador**. No queda ninguna copia dentro de Docker.
 
-| Tipo | Cuándo se crea |
-|---|---|
-| `manual` | Botón **Crear backup ahora** |
-| `auto` | Solo, cada 6 horas (configurable) mientras la app está abierta, **únicamente si hubo cambios** desde el último backup |
-| `apagado` | Siempre que se apaga Docker (`docker compose stop`/`down`, `Ctrl+C`) |
-| `previo-restauracion` | Automático, justo antes de restaurar otro backup |
+Dónde se guarda depende de tu navegador: si tiene activado "Preguntar dónde guardar cada archivo" (en la configuración de descargas) te abre el explorador de archivos; si no, va a la carpeta de descargas. Se probó con Brave, Edge y un navegador tipo Electron (el integrado de VS Code).
 
-Se conservan los últimos 10 (`auto` + `apagado`); los `manual` y `previo-restauracion` nunca se borran solos. Cerrar la pestaña del navegador no dispara nada ni pierde datos: todo se guarda en la base al instante.
+> No se usa la función del navegador para "guardar como" (File System Access API) ni `prompt()`/`confirm()`: los navegadores embebidos tipo Electron las exponen pero las bloquean, y dejaban un archivo vacío que después no se podía restaurar.
 
 ### Restaurar (incluso en una instalación nueva)
 
-En la pantalla **Backups**:
+En la pantalla **Backups**, **Subir y restaurar**: elegís un `.zip` de tu PC y se restaura al instante. Si el archivo está vacío (una descarga que no se completó) o no es un backup de esta app, avisa y no toca nada.
 
-- **Restaurar** en la fila de cualquier backup de la carpeta, o
-- **Subir y restaurar**: elegí un `.zip` de cualquier lugar de tu PC.
+**Reemplaza todos los datos actuales** (incluida la numeración, que vuelve al punto del backup) y los PDF. No hay backup de seguridad automático: si querés poder volver atrás, creá antes un backup de lo actual. La base se restaura en una sola transacción, así que si el archivo falla, los datos quedan como estaban.
 
-Pide confirmación escribiendo `RESTAURAR`. **Reemplaza todos los datos actuales** (incluida la numeración, que vuelve al punto del backup) y los PDF. Antes de hacerlo se guarda un backup `previo-restauracion`, así que se puede deshacer. Para una máquina nueva: instalá Docker, `docker compose up --build`, abrí la app, **Backups → Subir y restaurar**, y queda todo cargado.
-
-Un backup creado con una versión más nueva de la app se rechaza con un aviso; uno más viejo se restaura y el esquema se actualiza solo.
+Para una máquina nueva: instalá Docker, `docker compose up --build`, abrí la app, **Backups → Subir y restaurar**, y queda todo cargado. Un backup creado con una versión más nueva de la app se rechaza con un aviso; uno más viejo se restaura y el esquema se actualiza solo.
 
 ### Recomendaciones
 
-- **Copiá la carpeta `backups/` a otro lugar** (pendrive, nube) de vez en cuando: si se rompe o se pierde la PC, se pierden también los backups que estaban en ella.
-- El backup "al apagar" necesita que Docker pueda cerrar la app ordenadamente (tiene hasta 2 minutos). Si la PC se apaga de golpe o se corta la luz, ese backup no se hace: para eso existen los automáticos periódicos.
+- **Hacé backups seguido** (por ejemplo al terminar el día) y **guardá copias fuera de la PC** (pendrive, nube): si se rompe o se pierde la PC, se pierde también todo lo que estaba en ella.
+- Cerrar la pestaña del navegador o apagar Docker no pierde datos: todo se guarda en la base al instante. Lo que **sí** los borra es `docker compose down -v`.
 
 ---
 
 ## 4. Notas de diseño y próximos módulos
 
 - El esquema de la base se versiona en `migrations/versions/`. Para cambiar tablas se crea una nueva migración con Alembic (`alembic revision --autogenerate`); se aplica sola en el próximo arranque.
-- Gunicorn corre con **un solo worker** (y varios threads): los backups automáticos viven en un hilo dentro de la app y la restauración bloquea los pedidos con una bandera en memoria. La concurrencia de escritura la maneja PostgreSQL.
+- Gunicorn corre con **un solo worker** (y varios threads): la restauración bloquea los pedidos con una bandera en memoria, que solo funciona dentro de un mismo proceso. La concurrencia de escritura la maneja PostgreSQL.
 - Pensada para agregar después, sin romper lo existente: presupuestos, estados de reparación, inventario de repuestos, estadísticas, historial de equipos más completo (ya existe la tabla `equipos`), control de pagos y notificaciones. Cada módulo nuevo es un blueprint en `app/routes/` más sus tablas y migración.
 - Pensada para **un solo service, en un equipo o red local**.

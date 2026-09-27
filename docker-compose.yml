@@ -25,22 +25,13 @@ services:
     environment:
       - SECRET_KEY=${SECRET_KEY:-service-tecnico-dev}
       - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-service_app}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-service_app}
-      - BACKUP_DIR=/backups
-      - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-6}
-      - BACKUP_KEEP_AUTO=${BACKUP_KEEP_AUTO:-10}
       - TZ=${TZ:-America/Argentina/Buenos_Aires}
     volumes:
       # PDF generados (carpeta visible en tu PC).
       - ./documentos:/app/documentos
-      # Backups (carpeta de tu PC, fuera de Docker): aquí se guardan y desde
-      # aquí se pueden restaurar.
-      - ./backups:/backups
     depends_on:
       db:
         condition: service_healthy
-    # Tiempo que Docker espera al apagar antes de forzar el cierre: tiene que
-    # alcanzar para terminar pedidos en curso y hacer el backup final.
-    stop_grace_period: 120s
     networks:
       - service-network
     restart: unless-stopped

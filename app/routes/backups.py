@@ -1,87 +1,68 @@
 import os
+import shutil
 import tempfile
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, after_this_request, current_app, flash, redirect, render_template, request, send_file, url_for
 
 from .. import backup
 
 bp = Blueprint("backups", __name__, url_prefix="/backups")
-
-CONFIRMACION = "RESTAURAR"
 
 
 def _recortar(mensaje, largo=800):
     return mensaje if len(mensaje) <= largo else mensaje[:largo] + "…"
 
 
-def _confirmado():
-    if (request.form.get("confirmacion") or "").strip() == CONFIRMACION:
-        return True
-    flash(f"No se restauró nada: para confirmar hay que escribir {CONFIRMACION}.")
-    return False
-
-
-def _restaurar(ruta):
-    try:
-        backup.restaurar_backup(ruta)
-        flash("Backup restaurado correctamente. Todos los datos actuales fueron reemplazados por los del backup.")
-    except backup.BackupError as error:
-        flash(_recortar(str(error)))
-    except Exception as error:
-        current_app.logger.exception("Falló la restauración")
-        flash(_recortar(f"No se pudo restaurar el backup: {error}"))
-
-
 @bp.route("/")
 def index():
-    return render_template(
-        "backups/index.html",
-        backups=backup.listar_backups(),
-        intervalo=current_app.config["BACKUP_INTERVAL_HOURS"],
-        conservar=current_app.config["BACKUP_KEEP_AUTO"],
-    )
+    return render_template("backups/index.html")
 
 
 @bp.route("/crear", methods=["POST"])
 def crear():
+    """Crea un backup y lo entrega como descarga normal del navegador. No queda
+    copia en el servidor. Si falla, vuelve a la pantalla con el mensaje."""
     try:
-        nombre = backup.crear_backup("manual")
-        flash(f"Backup creado: {nombre}")
+        ruta = backup.crear_backup_para_descargar()
     except backup.BackupError as error:
         flash(_recortar(f"No se pudo crear el backup: {error}"))
-    return redirect(url_for("backups.index"))
-
-
-@bp.route("/descargar/<nombre>")
-def descargar(nombre):
-    try:
-        ruta = backup.ruta_backup(nombre)
-    except backup.BackupError as error:
-        flash(str(error))
         return redirect(url_for("backups.index"))
-    return send_file(ruta, as_attachment=True, download_name=nombre)
+    except Exception as error:
+        current_app.logger.exception("Falló la creación del backup")
+        flash(_recortar(f"No se pudo crear el backup: {error}"))
+        return redirect(url_for("backups.index"))
 
+    respuesta = send_file(ruta, as_attachment=True, download_name=os.path.basename(ruta), mimetype="application/zip")
+    # La pantalla usa esta marca para saber que la descarga ya empezó y volver a
+    # habilitar el botón (no se puede saber de otra forma con una descarga normal).
+    respuesta.set_cookie("backup_listo", request.form.get("marca", "")[:40], max_age=120, path="/backups", samesite="Lax")
 
-@bp.route("/restaurar/<nombre>", methods=["POST"])
-def restaurar(nombre):
-    if _confirmado():
-        try:
-            _restaurar(backup.ruta_backup(nombre))
-        except backup.BackupError as error:
-            flash(str(error))
-    return redirect(url_for("backups.index"))
+    # send_file ya abrió el archivo: en Linux se puede borrar la carpeta temporal
+    # ahora y la descarga se sigue enviando completa desde el archivo abierto.
+    @after_this_request
+    def _borrar_temporal(resp):
+        shutil.rmtree(os.path.dirname(ruta), ignore_errors=True)
+        return resp
+
+    return respuesta
 
 
 @bp.route("/subir", methods=["POST"])
 def subir():
-    if not _confirmado():
-        return redirect(url_for("backups.index"))
     archivo = request.files.get("archivo")
     if not archivo or not (archivo.filename or "").lower().endswith(".zip"):
         flash("Elegí un archivo de backup (.zip) para restaurar.")
         return redirect(url_for("backups.index"))
+
     with tempfile.TemporaryDirectory() as tmpdir:
         temporal = os.path.join(tmpdir, "subido.zip")
         archivo.save(temporal)
-        _restaurar(temporal)
+        try:
+            backup.restaurar_backup(temporal)
+            flash("Backup restaurado correctamente. Todos los datos actuales fueron reemplazados por los del backup.")
+        except backup.BackupError as error:
+            flash(_recortar(str(error)))
+        except Exception as error:
+            current_app.logger.exception("Falló la restauración")
+            flash(_recortar(f"No se pudo restaurar el backup: {error}"))
     return redirect(url_for("backups.index"))

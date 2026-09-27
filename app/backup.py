@@ -1,32 +1,24 @@
 """
 backup.py
 ---------
-Backups y restauración completos de la aplicación.
+Backups y restauración completos de la aplicación. Todo es manual: solo se
+hace un backup cuando el usuario lo pide desde la pantalla Backups.
 
 Un backup es un .zip con:
   - db.dump        volcado de PostgreSQL (pg_dump, formato custom)
   - documentos/    todos los PDF generados
-  - manifest.json  fecha, tipo, versión del esquema y cantidades
+  - manifest.json  fecha, versión del esquema y cantidades
 
-Los backups se guardan en la carpeta BACKUP_DIR, que docker-compose monta
-desde una carpeta de la PC (fuera de Docker). Se crean:
-  - a mano, con el botón de la pantalla Backups;
-  - solos, cada BACKUP_INTERVAL_HOURS horas mientras la app está abierta
-    (solo si hubo cambios desde el último);
-  - al apagar el contenedor (ver gunicorn.conf.py -> on_exit).
-
-Restaurar REEMPLAZA todos los datos actuales; antes de hacerlo se guarda un
-backup "previo-restauracion" por seguridad.
+El .zip se arma en una carpeta temporal y se entrega como descarga: no queda
+ninguna copia dentro de Docker. Restaurar REEMPLAZA todos los datos actuales.
 """
 
 import json
 import os
-import re
 import shutil
 import subprocess
 import tempfile
 import threading
-import time
 import zipfile
 from datetime import datetime
 
@@ -39,18 +31,7 @@ from . import db
 FORMAT_VERSION = 1
 APP_ID = "service-app"
 
-TIPOS = {
-    "manual": "Manual",
-    "auto": "Automático",
-    "apagado": "Al apagar",
-    "previo-restauracion": "Previo a restaurar",
-}
-# Solo estos tipos se borran solos cuando superan BACKUP_KEEP_AUTO.
-TIPOS_ROTATIVOS = ("auto", "apagado")
-
-_NOMBRE_RE = re.compile(r"^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_([a-z-]+)\.zip$")
-
-_lock = threading.RLock()
+_lock = threading.Lock()
 RESTORING = False
 
 
@@ -60,12 +41,6 @@ class BackupError(Exception):
 
 def _cfg(clave):
     return current_app.config[clave]
-
-
-def carpeta_backups():
-    carpeta = _cfg("BACKUP_DIR")
-    os.makedirs(carpeta, exist_ok=True)
-    return carpeta
 
 
 def _conexion_pg():
@@ -97,11 +72,6 @@ def _escalar(sql):
 def _info_db():
     return {
         "alembic_revision": _escalar("SELECT version_num FROM alembic_version"),
-        # Suma de inserciones/modificaciones/borrados: sirve para saber si
-        # hubo cambios desde el último backup.
-        "actividad": int(_escalar(
-            "SELECT COALESCE(SUM(n_tup_ins + n_tup_upd + n_tup_del), 0) FROM pg_stat_user_tables"
-        )),
         "clientes": _escalar("SELECT COUNT(*) FROM clientes"),
         "boletos": _escalar("SELECT COUNT(*) FROM boletos"),
         "recibos": _escalar("SELECT COUNT(*) FROM recibos"),
@@ -122,89 +92,35 @@ def _agregar_documentos(zf):
     return cantidad
 
 
-def crear_backup(tipo="manual"):
-    """Crea un backup en la carpeta de backups y devuelve su nombre de archivo."""
-    if tipo not in TIPOS:
-        raise ValueError(f"Tipo de backup desconocido: {tipo}")
+def crear_backup_para_descargar():
+    """Crea el backup en una carpeta temporal y devuelve la ruta del .zip. Quien
+    lo use debe borrar después esa carpeta (os.path.dirname de la ruta)."""
     with _lock:
-        carpeta = carpeta_backups()
-        sello = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        nombre = f"backup_{sello}_{tipo}.zip"
-        destino = os.path.join(carpeta, nombre)
-        temporal = destino + ".tmp"
-
-        args, entorno = _conexion_pg()
+        carpeta = tempfile.mkdtemp(prefix="backup_descarga_")
         try:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                volcado = os.path.join(tmpdir, "db.dump")
-                _ejecutar(
-                    ["pg_dump", "-Fc", "--no-owner", "--no-privileges", *args, "-f", volcado],
-                    entorno, "El volcado de la base de datos",
-                )
-                info = _info_db()
-                with zipfile.ZipFile(temporal, "w", zipfile.ZIP_DEFLATED) as zf:
-                    zf.write(volcado, "db.dump")
-                    info["documentos"] = _agregar_documentos(zf)
-                    manifest = {
-                        "app": APP_ID,
-                        "format_version": FORMAT_VERSION,
-                        "creado": datetime.now().isoformat(timespec="seconds"),
-                        "tipo": tipo,
-                        **info,
-                    }
-                    zf.writestr("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))
-            os.replace(temporal, destino)
-        finally:
-            if os.path.exists(temporal):
-                os.remove(temporal)
-
-        _limpiar_rotativos()
-        return nombre
-
-
-def listar_backups():
-    """Todos los .zip de la carpeta de backups, del más nuevo al más viejo."""
-    carpeta = carpeta_backups()
-    items = []
-    for nombre in os.listdir(carpeta):
-        ruta = os.path.join(carpeta, nombre)
-        if not nombre.lower().endswith(".zip") or not os.path.isfile(ruta):
-            continue
-        estado = os.stat(ruta)
-        coincide = _NOMBRE_RE.match(nombre)
-        clave = coincide.group(1) if coincide else ""
-        items.append({
-            "nombre": nombre,
-            "clave": clave,
-            "tipo": TIPOS.get(clave, "Otro"),
-            "fecha": datetime.fromtimestamp(estado.st_mtime),
-            "bytes": estado.st_size,
-        })
-    items.sort(key=lambda i: i["fecha"], reverse=True)
-    return items
-
-
-def ruta_backup(nombre):
-    """Ruta completa de un backup de la carpeta, validando el nombre para que
-    no se pueda salir de ella."""
-    if not nombre or "/" in nombre or "\\" in nombre or not nombre.lower().endswith(".zip"):
-        raise BackupError("Nombre de backup inválido.")
-    ruta = os.path.join(carpeta_backups(), nombre)
-    if not os.path.isfile(ruta):
-        raise BackupError("Ese backup ya no existe en la carpeta.")
-    return ruta
-
-
-def _limpiar_rotativos():
-    conservar = _cfg("BACKUP_KEEP_AUTO")
-    if conservar <= 0:
-        return
-    rotativos = [b for b in listar_backups() if b["clave"] in TIPOS_ROTATIVOS]
-    for viejo in rotativos[conservar:]:
-        try:
-            os.remove(os.path.join(carpeta_backups(), viejo["nombre"]))
-        except OSError:
-            pass
+            destino = os.path.join(carpeta, f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.zip")
+            args, entorno = _conexion_pg()
+            volcado = os.path.join(carpeta, "db.dump")
+            _ejecutar(
+                ["pg_dump", "-Fc", "--no-owner", "--no-privileges", *args, "-f", volcado],
+                entorno, "El volcado de la base de datos",
+            )
+            info = _info_db()
+            with zipfile.ZipFile(destino, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.write(volcado, "db.dump")
+                info["documentos"] = _agregar_documentos(zf)
+                manifest = {
+                    "app": APP_ID,
+                    "format_version": FORMAT_VERSION,
+                    "creado": datetime.now().isoformat(timespec="seconds"),
+                    **info,
+                }
+                zf.writestr("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))
+            os.remove(volcado)
+        except Exception:
+            shutil.rmtree(carpeta, ignore_errors=True)
+            raise
+        return destino
 
 
 # --------------------------------------------------------------- restauración
@@ -225,8 +141,13 @@ def _migrar_a_ultima():
 
 
 def _validar_zip(ruta):
+    if os.path.getsize(ruta) == 0:
+        raise BackupError(
+            "El archivo está vacío (0 bytes): la descarga del backup no se completó. "
+            "Creá un backup nuevo y usá ese archivo."
+        )
     if not zipfile.is_zipfile(ruta):
-        raise BackupError("El archivo no es un .zip válido.")
+        raise BackupError("El archivo no es un .zip válido (puede estar incompleto o dañado).")
     with zipfile.ZipFile(ruta) as zf:
         nombres = zf.namelist()
         if "manifest.json" not in nombres or "db.dump" not in nombres:
@@ -276,18 +197,13 @@ def _restaurar_documentos(zf):
 
 
 def restaurar_backup(ruta_zip):
-    """Reemplaza TODOS los datos actuales por los del backup."""
+    """Reemplaza TODOS los datos actuales por los del backup. La base se
+    restaura en una sola transacción: si falla, queda como estaba."""
     global RESTORING
     with _lock:
         _validar_zip(ruta_zip)
         RESTORING = True
         try:
-            try:
-                crear_backup("previo-restauracion")
-            except BackupError as error:
-                raise BackupError(
-                    f"No se restauró nada: no se pudo guardar el backup de seguridad previo. {error}"
-                )
             db.dispose()
             args, entorno = _conexion_pg()
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -306,54 +222,3 @@ def restaurar_backup(ruta_zip):
         finally:
             RESTORING = False
             db.dispose()
-
-
-# ---------------------------------------------------------------- automáticos
-
-def _hay_cambios_desde_el_ultimo():
-    ultimos = listar_backups()
-    if not ultimos:
-        return True
-    try:
-        with zipfile.ZipFile(os.path.join(carpeta_backups(), ultimos[0]["nombre"])) as zf:
-            manifest = json.loads(zf.read("manifest.json"))
-        return manifest.get("actividad") != _info_db()["actividad"]
-    except Exception:
-        return True
-
-
-def _corresponde_backup_automatico(intervalo_horas):
-    ultimos = listar_backups()
-    if ultimos and (datetime.now() - ultimos[0]["fecha"]).total_seconds() < intervalo_horas * 3600:
-        return False
-    return _hay_cambios_desde_el_ultimo()
-
-
-def start_scheduler(app):
-    """Hilo en segundo plano que hace un backup automático cada
-    BACKUP_INTERVAL_HOURS horas (0 = desactivado), si hubo cambios."""
-    intervalo = app.config["BACKUP_INTERVAL_HOURS"]
-    if intervalo <= 0:
-        return
-
-    def bucle():
-        while True:
-            time.sleep(60)
-            try:
-                with app.app_context():
-                    if not RESTORING and _corresponde_backup_automatico(intervalo):
-                        nombre = crear_backup("auto")
-                        app.logger.info("Backup automático creado: %s", nombre)
-            except Exception:
-                app.logger.exception("Falló el backup automático")
-
-    threading.Thread(target=bucle, daemon=True, name="backup-automatico").start()
-
-
-def backup_al_apagar():
-    """Lo llama gunicorn (on_exit) cuando el contenedor se está por apagar."""
-    from . import create_app
-
-    app = create_app(start_scheduler=False)
-    with app.app_context():
-        return crear_backup("apagado")

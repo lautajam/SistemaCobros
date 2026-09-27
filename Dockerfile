@@ -46,13 +46,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 RUN useradd --create-home --shell /usr/sbin/nologin appuser \
-    && mkdir -p documentos /backups \
-    && chown -R appuser:appuser /app /backups
+    && mkdir -p documentos \
+    && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 5000
 
 # Primero se crea/actualiza el esquema de la base de datos (Alembic) y luego
 # arranca gunicorn (con exec, para que reciba las señales de apagado de Docker).
-# Ver gunicorn.conf.py: un solo worker y backup final al apagar.
+# Ver gunicorn.conf.py: un solo worker.
 CMD ["sh", "-c", "alembic upgrade head && exec gunicorn -c gunicorn.conf.py run:app"]
