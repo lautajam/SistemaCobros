@@ -2,44 +2,57 @@
 
 Aplicación web local (uso en un solo equipo / red interna) para gestionar
 la recepción de equipos, boletos, recibos y clientes de un service técnico.
-**Toda la información persistente se guarda en archivos CSV**, sin ninguna
-base de datos SQL/NoSQL.
+Corre en **Docker** con una base de datos **PostgreSQL** y tiene **backups
+completos** (manuales y automáticos) que se guardan en una carpeta de tu PC,
+fuera de Docker, y se pueden volver a cargar desde la propia app.
 
 ---
 
 ## 1. Arquitectura
 
-### Tecnología elegida
+### Tecnología
 
-- **Backend:** Python + [Flask](https://flask.palletsprojects.com/) (micro-framework, sin ORM).
-- **Interfaz:** HTML renderizado por el propio Flask (Jinja2) + CSS simple, sin frameworks de JS pesados. Un poco de JavaScript "vanilla" para la búsqueda de clientes en vivo.
-- **Persistencia:** archivos **CSV** (módulo estándar `csv` de Python), UTF-8, con escritura atómica.
-- **Plantillas de documentos:** HTML + Jinja2, totalmente separadas del código.
-- **HTML → PDF:** [`pdfkit`](https://pypi.org/project/pdfkit/) + `wkhtmltopdf` (motor de renderizado que respeta bien CSS, márgenes, tablas y saltos de página; pensado para impresión).
+- **Backend:** Python + [Flask](https://flask.palletsprojects.com/), servido con Gunicorn.
+- **Base de datos:** PostgreSQL 16, con [SQLAlchemy](https://www.sqlalchemy.org/) 2 y migraciones con [Alembic](https://alembic.sqlalchemy.org/) (el esquema se crea y actualiza solo al arrancar).
+- **Interfaz:** HTML renderizado por Flask (Jinja2) + CSS simple + un poco de JavaScript "vanilla" para la búsqueda de clientes en vivo.
+- **Plantillas de documentos:** HTML + Jinja2, totalmente separadas del código y editables.
+- **HTML → PDF:** `pdfkit` + `wkhtmltopdf` (ya instalado dentro de la imagen Docker).
+- **Backups:** `pg_dump` / `pg_restore` (cliente de PostgreSQL 16, también dentro de la imagen).
+- **Infraestructura:** Docker Compose con dos servicios (`db` y `app`).
 
-**¿Por qué esta combinación?**
-Flask es liviano, no impone una base de datos (a diferencia de Django) y es
-perfecto para una app CRUD simple que corre en un solo equipo. Al ser una
-app web local, no depende del sistema operativo para la interfaz (Windows,
-Linux o Mac: se abre en el navegador). `wkhtmltopdf` es el motor más simple
-y confiable para convertir HTML/CSS a PDF con buena fidelidad de impresión,
-sin depender de librerías nativas pesadas.
+### Servicios y datos en Docker
+
+| Qué | Dónde vive | Visible en tu PC |
+|---|---|---|
+| Base de datos (clientes, boletos, recibos, configuración, logo, contadores) | volumen de Docker `db_data` | No (por eso existen los backups) |
+| PDF generados | carpeta `documentos/` del proyecto | Sí |
+| Backups | carpeta `backups/` del proyecto | Sí |
 
 ### Estructura de carpetas
 
 ```text
 service-app/
 │
-├── run.py                     # Punto de entrada (python run.py)
+├── Dockerfile                 # Imagen de la app (Python + wkhtmltopdf + cliente PostgreSQL)
+├── docker-compose.yml         # Servicios db (PostgreSQL) y app, volúmenes, backups
+├── gunicorn.conf.py           # Un worker + backup automático al apagar
+├── alembic.ini
+├── iniciar.bat                # Windows: levanta todo y abre el navegador
+├── detener.bat                # Windows: detiene la app (con backup)
+├── .env.example               # Variables opcionales (copiar como .env para usarlas)
+├── run.py                     # Punto de entrada (lo carga gunicorn)
 ├── requirements.txt
 │
 ├── app/                       # Código de la aplicación (Flask)
-│   ├── __init__.py            # Application factory, configuración, inicialización de storage
-│   ├── csv_utils.py           # Lectura/escritura atómica y segura de CSV
+│   ├── __init__.py            # Application factory y configuración
+│   ├── settings.py            # DATABASE_URL leída del entorno
+│   ├── db.py                  # Conexión y sesiones de SQLAlchemy
+│   ├── models.py              # Tablas de la base + formato de IDs
+│   ├── repo.py                # Acceso a datos (get / listar / insertar / actualizar / eliminar)
 │   ├── counters.py            # Numeración correlativa independiente y persistente
-│   ├── models.py              # Definición de columnas de cada CSV + formato de IDs
+│   ├── backup.py              # Crear / listar / restaurar backups + backups automáticos
 │   ├── pdf_utils.py           # Motor Jinja2 + conversión HTML -> PDF, normalización de nombres
-│   ├── documentos.py          # Reglas de negocio: arma el contexto y guarda cada PDF en su carpeta
+│   ├── documentos.py          # Arma el contexto y guarda cada PDF en su carpeta
 │   ├── routes/                # Blueprints (uno por sección de la app)
 │   │   ├── main.py            # Pantalla de inicio
 │   │   ├── clientes.py        # CRUD de clientes + búsqueda/creación rápida (AJAX)
@@ -47,77 +60,59 @@ service-app/
 │   │   ├── recibos.py         # Alta/edición/PDF de recibos (standalone o desde un boleto)
 │   │   ├── historial.py       # Historial general con pestañas y filtros
 │   │   ├── configuracion.py   # Datos del service + logo
-│   │   └── blancos.py         # Generación de boletos/recibos en blanco
-│   ├── templates/             # Plantillas HTML de la INTERFAZ (no confundir con las de documentos)
+│   │   ├── blancos.py         # Boletos/recibos en blanco
+│   │   └── backups.py         # Pantalla de backups: crear, descargar, restaurar
+│   ├── templates/             # Plantillas HTML de la INTERFAZ
 │   └── static/                # CSS y JS de la interfaz
+│
+├── migrations/                # Migraciones de Alembic (esquema de la base)
 │
 ├── templates/                 # ⭐ Plantillas EDITABLES de los documentos PDF
 │   ├── boleto.html
 │   ├── recibo.html
-│   └── README.md              # Documentación de todas las variables disponibles
+│   └── README.md              # Variables disponibles en las plantillas
 │
-├── data/                      # Persistencia (se crea sola en el primer arranque)
-│   ├── clientes/clientes.csv
-│   ├── boletos/boletos.csv
-│   ├── recibos/recibos.csv
-│   ├── equipos/equipos.csv
-│   └── configuracion/
-│       ├── configuracion.csv
-│       └── contadores.csv
+├── documentos/                # PDF generados (montada desde tu PC)
+│   ├── boletos/
+│   ├── recibos/
+│   └── blancos/{boletos,recibos}/
 │
-└── documentos/                # PDF generados (se crea solo en el primer arranque)
-    ├── boletos/
-    ├── recibos/
-    └── blancos/
-        ├── boletos/
-        └── recibos/
+└── backups/                   # Backups (.zip), montada desde tu PC (no se sube a git)
 ```
 
-### Modelo de datos (columnas de cada CSV)
+### Modelo de datos (tablas)
 
-- **clientes.csv:** `id, nombre, dni_cuit, telefono, email, direccion, localidad, codigo_postal, observaciones`
-- **boletos.csv:** `id, numero, cliente_id, fecha, hora, equipo, marca, modelo, numero_serie, especificaciones, accesorios, estado_fisico, problema, observaciones`
-- **recibos.csv:** `id, numero, cliente_id, boleto_id, fecha, trabajo, descripcion, importe, forma_pago, observaciones`
-- **equipos.csv** (auxiliar, opcional): `id, cliente_id, tipo, marca, modelo, numero_serie` — se completa solo si el boleto trae N.º de serie, para poder consultar en el futuro el historial de un mismo equipo sin complicar la v1.
-- **configuracion.csv:** una sola fila con los datos del service (`nombre, cuit, telefono, email, direccion, localidad, codigo_postal, logo`).
-- **contadores.csv:** `tipo, ultimo_numero` con tres filas (`cliente`, `boleto`, `recibo`).
+- **clientes:** `id, nombre, dni_cuit, telefono, email, direccion, localidad, codigo_postal, observaciones`
+- **boletos:** `id, numero, cliente_id, fecha, hora, equipo, marca, modelo, numero_serie, especificaciones, accesorios, estado_fisico, problema, observaciones`
+- **recibos:** `id, numero, cliente_id, boleto_id, fecha, trabajo, descripcion, importe, forma_pago, observaciones`
+- **equipos** (auxiliar): `id, cliente_id, tipo, marca, modelo, numero_serie` — se completa solo si el boleto trae N.º de serie, como base para consultar en el futuro el historial de un mismo equipo.
+- **configuracion:** una sola fila con los datos del service y el **logo** (guardado en la propia base, así viaja dentro de los backups).
+- **contadores:** `tipo, ultimo_numero` con tres filas (`cliente`, `boleto`, `recibo`).
 
-Un boleto **nunca** duplica los datos del cliente: guarda `cliente_id` y la
-app hace el "join" en memoria al mostrar o generar el PDF. Lo mismo para
-`boleto_id` en un recibo (puede estar vacío).
-
-### Funcionamiento de los CSV (`csv_utils.py`)
-
-- Se crean automáticamente (carpeta + archivo + encabezado) la primera vez que se necesitan.
-- Toda escritura reescribe el archivo completo en un **archivo temporal** y luego lo reemplaza con `os.replace()` (operación atómica a nivel de sistema de archivos), para que nunca quede un CSV a medio escribir.
-- Se usa el módulo `csv` estándar (`QUOTE_MINIMAL`), que escapa automáticamente comas, comillas y saltos de línea dentro de un campo.
-- Un lock en memoria por archivo evita condiciones de carrera si el servidor atiende dos pedidos al mismo tiempo.
+Un boleto **nunca** duplica los datos del cliente: guarda `cliente_id` (clave foránea). Un recibo puede estar asociado a un boleto (`boleto_id`, opcional). Si se elimina un boleto, sus recibos quedan sin boleto asociado.
 
 ### Sistema de numeración (`counters.py`)
 
-- `contadores.csv` guarda el **último número emitido** por tipo de documento (`cliente`, `boleto`, `recibo`), completamente independientes entre sí.
-- Al crear un boleto/recibo/cliente: se lee el contador, se incrementa, se guarda inmediatamente y **recién después** se guarda el registro. El número nunca se calcula como `len(registros) + 1`.
-- Si se elimina un boleto o recibo, su número queda consumido para siempre: el contador no se decrementa ni se reutiliza.
+- La tabla `contadores` guarda el **último número emitido** por tipo, de forma independiente.
+- Al crear un boleto/recibo/cliente se incrementa el contador con un único `UPDATE ... RETURNING` (atómico en PostgreSQL, seguro aunque haya pedidos simultáneos) y **recién después** se guarda el registro. El número nunca se calcula como `cantidad + 1`.
+- Si se elimina un boleto o recibo, su número queda consumido: el contador no se decrementa.
 - IDs resultantes: cliente `C00001`, boleto `B0001` (número visible `0001`), recibo `R0027` (número visible `0027`).
 
-### Sistema de plantillas HTML (`templates/boleto.html`, `templates/recibo.html`)
+### Plantillas de documentos (`templates/boleto.html`, `templates/recibo.html`)
 
-Estas plantillas son **independientes del código** de la aplicación: se
-pueden editar con cualquier editor de texto para cambiar diseño, colores,
-tipografías, logo, textos o campos visibles. Usan sintaxis **Jinja2**
-(`{{ variable }}`). Toda la lista de variables disponibles está documentada
-en [`templates/README.md`](templates/README.md).
+Son **independientes del código**: se pueden editar con cualquier editor de texto para cambiar diseño, colores, tipografías, textos o campos visibles. Usan sintaxis **Jinja2** (`{{ variable }}`); la lista de variables está en [`templates/README.md`](templates/README.md). Esta carpeta viaja dentro de la imagen de Docker: después de editar una plantilla, reconstruí con `docker compose up --build` para que el cambio se vea en los próximos PDF.
 
-### Sistema de generación de PDF (`pdf_utils.py` + `documentos.py`)
+### Generación de PDF (`pdf_utils.py` + `documentos.py`)
 
 1. Se arma un diccionario de contexto (`service`, `cliente`, `boleto`/`recibo`).
-2. Se renderiza la plantilla HTML correspondiente con Jinja2.
-3. Se convierte el HTML resultante a PDF con `wkhtmltopdf` (vía `pdfkit`), con opciones pensadas para impresión (tamaño A4, márgenes, acceso a archivos locales para el logo).
-4. Se guarda en la carpeta que corresponde (`documentos/boletos`, `documentos/recibos` o `documentos/blancos/...`) con el nombre de archivo obligatorio:
+2. Se renderiza la plantilla HTML con Jinja2 (el logo se incrusta como imagen dentro del HTML).
+3. `wkhtmltopdf` la convierte a PDF (A4, márgenes de impresión).
+4. Se guarda en `documentos/boletos`, `documentos/recibos` o `documentos/blancos/...` con el nombre obligatorio:
    - `boleto_recepcion_DD-MM-YYYY_Nombre_Cliente_NNNN.pdf`
    - `recibo_DD-MM-YYYY_Nombre_Cliente_NNNN.pdf`
-   El nombre del cliente se normaliza (sin tildes, sin espacios, sin caracteres especiales) solo para el nombre de archivo; en `clientes.csv` el nombre queda intacto.
-5. Los documentos en blanco usan un nombre fijo (`boleto_recepcion_en_blanco.pdf` / `recibo_en_blanco.pdf`) y, si ya existe un archivo con ese nombre, se agrega un sufijo (`_1`, `_2`, ...) para no pisarlo. No consumen numeración.
+
+   El nombre del cliente se normaliza (sin tildes, espacios ni caracteres especiales) solo para el nombre de archivo.
+5. Los documentos en blanco usan un nombre fijo (`boleto_recepcion_en_blanco.pdf` / `recibo_en_blanco.pdf`) con sufijo (`_1`, `_2`, ...) si ya existe. No consumen numeración.
 
 ### Flujo de navegación
 
@@ -128,110 +123,113 @@ Inicio
  ├─ Clientes -> lista/búsqueda -> ficha de cliente -> historial (boletos + recibos)
  ├─ Historial -> pestañas Boletos/Recibos -> buscar/filtrar -> ver/editar/PDF/eliminar
  ├─ Boleto en blanco / Recibo en blanco -> descarga directa de PDF
+ ├─ Backups -> crear / descargar / restaurar
  └─ Configuración -> datos del service + logo
 ```
 
-Desde el detalle de un boleto se puede tocar **"Crear recibo"**, que abre el
-formulario de recibo con cliente y referencia al boleto ya completados; el
-usuario solo carga trabajo realizado, importe y forma de pago. También se
-puede crear un recibo totalmente independiente desde "Nuevo recibo".
+Desde el detalle de un boleto se puede tocar **"Crear recibo"**, que abre el formulario de recibo con cliente y boleto ya completados.
 
 ---
 
-## 2. Instalación y puesta en marcha
+## 2. Puesta en marcha (Docker)
+
+No hace falta instalar Python, PostgreSQL ni `wkhtmltopdf`: todo viene dentro de las imágenes.
 
 ### Requisitos
 
-- Python 3.9 o superior.
-- El programa **wkhtmltopdf** instalado en el sistema. **Importante:** `pip install pdfkit` (paso siguiente) NO alcanza — `pdfkit` es solo un conector en Python hacia el programa real `wkhtmltopdf`, que hay que instalar aparte:
-  - **Windows:** descargar el instalador `.exe` desde <https://wkhtmltopdf.org/downloads.html> (la versión para Windows 64-bit), ejecutarlo con las opciones por defecto, y **cerrar y volver a abrir la terminal** (o reiniciar el equipo) antes de correr la app, para que Windows reconozca el nuevo programa.
-  - **macOS:** descargarlo de la misma página, o `brew install wkhtmltopdf` si usás Homebrew.
-  - **Debian/Ubuntu:** `sudo apt-get install wkhtmltopdf`
-  - **Fedora:** `sudo dnf install wkhtmltopdf`
+- **Docker Desktop** (Windows/Mac) o Docker Engine + Compose (Linux).
+- En Windows, Docker Desktop necesita **WSL2** y la virtualización activa. Si Docker Desktop dice "virtualization support not detected" aunque la BIOS la tenga activada, abrí PowerShell **como administrador**, corré `wsl --install --no-distribution` y reiniciá la PC.
 
-  Si después de instalarlo la app sigue sin encontrarlo (error `No wkhtmltopdf executable found`), definí la ruta manualmente antes de ejecutar `run.py`. En Windows (símbolo del sistema):
-  ```cmd
-  set WKHTMLTOPDF_PATH=C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe
-  python run.py
-  ```
-  (la ruta exacta depende de dónde haya quedado instalado; normalmente es esa).
-
-  Mientras `wkhtmltopdf` no esté disponible, la aplicación sigue funcionando con normalidad — guarda igual los clientes, boletos y recibos en los CSV — y solo muestra un aviso explicando cómo instalarlo cuando intenta generar un PDF, en vez de romperse.
-
-### Instalación
-
-```bash
-cd service-app
-python -m venv venv
-source venv/bin/activate        # En Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### Ejecutar la aplicación
-
-```bash
-python run.py
-```
-
-Luego abrí en el navegador:
-
-```
-http://127.0.0.1:5000
-```
-
-La primera vez que se ejecuta, la aplicación crea automáticamente todas las
-carpetas y archivos CSV necesarios dentro de `data/` y `documentos/`. No hace
-falta ninguna configuración adicional ni instalar una base de datos.
-
-### Ejecutar con Docker (alternativa)
-
-No hace falta instalar Python ni `wkhtmltopdf` en el equipo: la imagen ya
-trae todo lo necesario.
+### Primer arranque
 
 ```bash
 docker compose up --build
 ```
 
-Luego abrí `http://127.0.0.1:5000`, igual que antes. `data/` y `documentos/`
-se montan como carpetas del propio equipo (bind mount): los CSV y los PDF
-generados quedan en las mismas carpetas de siempre y sobreviven a
-`docker compose down` o a reconstruir la imagen.
+La primera vez tarda varios minutos (descarga las imágenes e instala las dependencias). Después abrí:
 
-**Nota sobre concurrencia:** el contenedor corre a propósito con un solo
-*worker* de Gunicorn (con varios *threads* adentro). `csv_utils.py` usa un
-lock en memoria **por proceso** (ver más abajo); varios workers de Gunicorn
-son procesos separados que no comparten ese lock entre sí, lo que podría
-duplicar la numeración de boletos/recibos bajo pedidos concurrentes. Con un
-solo worker se mantiene la misma garantía que ya tenés hoy corriendo
-`python run.py`.
+```
+http://127.0.0.1:5000
+```
 
-**Preparado para escalar a una base de datos:** `docker-compose.yml` incluye
-un servicio `db` (PostgreSQL) comentado, con su red y variable
-`DATABASE_URL` de ejemplo. El día que se migre la persistencia de CSV a una
-base de datos real, alcanza con descomentarlo — no hace falta rediseñar la
-infraestructura, solo actualizar `csv_utils.py` para que hable con esa base
-en lugar de con archivos CSV.
+> Los logs dicen `Listening at: http://0.0.0.0:5000`: esa es la dirección interna del contenedor y **no se puede abrir en el navegador** (da `ERR_ADDRESS_INVALID`). Entrá siempre por `127.0.0.1` o `localhost`.
 
-### Uso diario
+Al iniciar, la app crea sola las tablas de la base (Alembic). Empieza vacía.
 
-1. Configurá los datos del service (nombre, CUIT, logo, etc.) en **Configuración** — se completan solos en todos los PDF.
-2. Usá **Nuevo boleto** para registrar un equipo que ingresa: buscá el cliente (o creálo sin salir del formulario) y completá los datos del equipo. Al guardar se genera el PDF automáticamente.
-3. Cuando el trabajo está terminado, abrí el boleto correspondiente desde **Historial** y tocá **Crear recibo**.
-4. Podés imprimir cualquier boleto/recibo desde su pantalla de detalle ("Ver / Imprimir PDF"), o generar formularios en blanco para completar a mano desde la pantalla de inicio.
-5. **Clientes → Ver historial** muestra todos los boletos y recibos de un cliente en un solo lugar.
+### Uso de todos los días (Windows: doble clic)
+
+- **`iniciar.bat`**: abre Docker Desktop si hace falta, levanta la app y **abre una pestaña en tu navegador predeterminado** cuando ya está lista. Se puede ejecutar cada vez que quieras usar la app (si ya estaba corriendo, solo abre la pestaña).
+- **`detener.bat`**: detiene la app (**hace un backup** antes de cerrar).
+
+Un contenedor no puede abrir el navegador de tu PC por sí solo; por eso el navegador se abre desde `iniciar.bat` y no cuando se usa `docker compose up` a mano.
+
+Con la terminal:
+
+| Acción | Comando |
+|---|---|
+| Iniciar | `docker compose up` (o `docker compose up -d` para dejarlo en segundo plano) |
+| Detener (**hace un backup**) | `Ctrl+C` en esa terminal, o `docker compose stop` / `docker compose down` |
+| Ver los logs | `docker compose logs -f app` |
+| Reconstruir tras cambiar código | `docker compose up --build` |
+
+> ⚠️ **`docker compose down -v` BORRA la base de datos** (el flag `-v` elimina el volumen `db_data`). Usá `docker compose down` a secas. Si por error se borra, se recupera restaurando un backup (ver abajo).
+
+### Configuración opcional
+
+Copiá `.env.example` como `.env` y cambiá lo que quieras (contraseña de la base, clave de Flask, cada cuántas horas se hacen los backups automáticos, cuántos se conservan, zona horaria). Sin `.env` se usan los valores por defecto.
+
+### Uso diario de la app
+
+1. Configurá los datos del service (nombre, CUIT, logo, etc.) en **Configuración**: se completan solos en todos los PDF.
+2. **Nuevo boleto** para registrar un equipo que ingresa: buscá el cliente (o creálo sin salir del formulario). Al guardar se genera el PDF.
+3. Cuando el trabajo está terminado, abrí el boleto desde **Historial** y tocá **Crear recibo**.
+4. Podés imprimir cualquier boleto/recibo desde su pantalla de detalle, o generar formularios en blanco desde el inicio.
+5. **Clientes → Ver historial** muestra todos los boletos y recibos de un cliente.
 
 ---
 
-## 3. Notas de diseño y próximos módulos
+## 3. Backups
 
-Pensada para agregar después, sin romper lo existente: presupuestos, estados
-de reparación, inventario de repuestos, estadísticas, historial de equipos
-más completo (ya existe `equipos.csv` como base), control de pagos y
-notificaciones. La separación en blueprints (`app/routes/`) y la capa de
-acceso a CSV (`csv_utils.py`) están pensadas para que un módulo nuevo no
-tenga que tocar los existentes.
+Como la base de datos vive dentro de un volumen de Docker, **los backups son lo que protege tu información**.
 
-Esta aplicación está pensada para uso de **un solo service, en un equipo o
-red local** (no para múltiples instancias escribiendo a la vez sobre los
-mismos archivos CSV de una carpeta compartida por red, ya que el mecanismo
-de locking es en memoria, dentro de un mismo proceso).
+### Qué incluye un backup
+
+Un archivo `.zip` con **todo**: la base de datos completa (clientes, boletos, recibos, configuración, logo, numeración), los PDF generados y un `manifest.json` (fecha, tipo, versión del esquema, cantidades).
+
+### Dónde se guardan
+
+En la carpeta **`backups/`** del proyecto, en tu PC (fuera de Docker). Nombres como `backup_2026-09-26_22-57-33_manual.zip`; el final indica el tipo:
+
+| Tipo | Cuándo se crea |
+|---|---|
+| `manual` | Botón **Crear backup ahora** |
+| `auto` | Solo, cada 6 horas (configurable) mientras la app está abierta, **únicamente si hubo cambios** desde el último backup |
+| `apagado` | Siempre que se apaga Docker (`docker compose stop`/`down`, `Ctrl+C`) |
+| `previo-restauracion` | Automático, justo antes de restaurar otro backup |
+
+Se conservan los últimos 10 (`auto` + `apagado`); los `manual` y `previo-restauracion` nunca se borran solos. Cerrar la pestaña del navegador no dispara nada ni pierde datos: todo se guarda en la base al instante.
+
+### Restaurar (incluso en una instalación nueva)
+
+En la pantalla **Backups**:
+
+- **Restaurar** en la fila de cualquier backup de la carpeta, o
+- **Subir y restaurar**: elegí un `.zip` de cualquier lugar de tu PC.
+
+Pide confirmación escribiendo `RESTAURAR`. **Reemplaza todos los datos actuales** (incluida la numeración, que vuelve al punto del backup) y los PDF. Antes de hacerlo se guarda un backup `previo-restauracion`, así que se puede deshacer. Para una máquina nueva: instalá Docker, `docker compose up --build`, abrí la app, **Backups → Subir y restaurar**, y queda todo cargado.
+
+Un backup creado con una versión más nueva de la app se rechaza con un aviso; uno más viejo se restaura y el esquema se actualiza solo.
+
+### Recomendaciones
+
+- **Copiá la carpeta `backups/` a otro lugar** (pendrive, nube) de vez en cuando: si se rompe o se pierde la PC, se pierden también los backups que estaban en ella.
+- El backup "al apagar" necesita que Docker pueda cerrar la app ordenadamente (tiene hasta 2 minutos). Si la PC se apaga de golpe o se corta la luz, ese backup no se hace: para eso existen los automáticos periódicos.
+
+---
+
+## 4. Notas de diseño y próximos módulos
+
+- El esquema de la base se versiona en `migrations/versions/`. Para cambiar tablas se crea una nueva migración con Alembic (`alembic revision --autogenerate`); se aplica sola en el próximo arranque.
+- Gunicorn corre con **un solo worker** (y varios threads): los backups automáticos viven en un hilo dentro de la app y la restauración bloquea los pedidos con una bandera en memoria. La concurrencia de escritura la maneja PostgreSQL.
+- Pensada para agregar después, sin romper lo existente: presupuestos, estados de reparación, inventario de repuestos, estadísticas, historial de equipos más completo (ya existe la tabla `equipos`), control de pagos y notificaciones. Cada módulo nuevo es un blueprint en `app/routes/` más sus tablas y migración.
+- Pensada para **un solo service, en un equipo o red local**.

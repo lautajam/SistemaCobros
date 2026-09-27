@@ -1,5 +1,0 @@
-id,numero,cliente_id,fecha,hora,equipo,marca,modelo,numero_serie,especificaciones,accesorios,estado_fisico,problema,observaciones
-B0001,0001,C00001,2026-09-15,12:00,PC,HP,123,asdasdasf,fasfas,asfas,fas,asfas,fasfasfasf
-B0002,0002,C00001,2026-09-16,23:44,PC,12123,12312,sdgfdxcbgcvx,hbdxfh,fg hfdgh,dfgh dfgh dfgh,asdfsd fsdf, sdf sdf sdf 
-B0003,0003,C00001,2026-09-16,23:12,Impresora,HP,E12D3,11223443533R,,,,No enciende,
-B0004,0004,C00001,2026-09-16,,PC,HP,123,asdasdasf,,,,,

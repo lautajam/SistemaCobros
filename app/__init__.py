@@ -2,22 +2,17 @@ import os
 
 from flask import Flask
 
-from . import counters, csv_utils, models
+from . import counters, db, settings
 
 
-def create_app():
+def create_app(start_scheduler=True):
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "service-tecnico-dev")
     app.config["BASE_DIR"] = base_dir
-
-    data_dir = os.path.join(base_dir, "data")
-    app.config["CLIENTES_CSV"] = os.path.join(data_dir, "clientes", "clientes.csv")
-    app.config["BOLETOS_CSV"] = os.path.join(data_dir, "boletos", "boletos.csv")
-    app.config["RECIBOS_CSV"] = os.path.join(data_dir, "recibos", "recibos.csv")
-    app.config["EQUIPOS_CSV"] = os.path.join(data_dir, "equipos", "equipos.csv")
-    app.config["CONFIG_CSV"] = os.path.join(data_dir, "configuracion", "configuracion.csv")
-    app.config["CONTADORES_CSV"] = os.path.join(data_dir, "configuracion", "contadores.csv")
+    app.config["DATABASE_URL"] = settings.database_url()
+    # Un backup puede pesar bastante (incluye todos los PDF): sin límite práctico.
+    app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024
 
     # Plantillas de documentos (boleto.html / recibo.html), separadas del
     # motor de templates propio de Flask (app/templates, usado solo para la
@@ -25,30 +20,35 @@ def create_app():
     app.config["DOC_TEMPLATES_DIR"] = os.path.join(base_dir, "templates")
     app.config["DOCUMENTOS_DIR"] = os.path.join(base_dir, "documentos")
 
-    _inicializar_almacenamiento(app)
+    app.config["BACKUP_DIR"] = os.environ.get("BACKUP_DIR", os.path.join(base_dir, "backups"))
+    app.config["BACKUP_INTERVAL_HOURS"] = float(os.environ.get("BACKUP_INTERVAL_HOURS", "6"))
+    app.config["BACKUP_KEEP_AUTO"] = int(os.environ.get("BACKUP_KEEP_AUTO", "10"))
+
+    db.init_db(app)
+    _inicializar_carpetas(app)
     _registrar_blueprints(app)
     _registrar_context_processor(app)
+    _registrar_modo_mantenimiento(app)
+
+    if start_scheduler and os.environ.get("BACKUP_SCHEDULER", "1") == "1":
+        from . import backup
+
+        backup.start_scheduler(app)
 
     return app
 
 
-def _inicializar_almacenamiento(app):
-    """Crea automáticamente todas las carpetas y CSV necesarios si todavía
-    no existen (requisito: la app debe funcionar desde cero)."""
-    csv_utils.ensure_csv(app.config["CLIENTES_CSV"], models.CLIENTE_FIELDS)
-    csv_utils.ensure_csv(app.config["BOLETOS_CSV"], models.BOLETO_FIELDS)
-    csv_utils.ensure_csv(app.config["RECIBOS_CSV"], models.RECIBO_FIELDS)
-    csv_utils.ensure_csv(app.config["EQUIPOS_CSV"], models.EQUIPO_FIELDS)
-    csv_utils.ensure_csv(app.config["CONFIG_CSV"], models.CONFIG_FIELDS)
-    counters.ensure_counters(app.config["BASE_DIR"])
-
+def _inicializar_carpetas(app):
+    """Crea las carpetas de documentos si todavía no existen. El esquema de la
+    base de datos lo crea Alembic (`alembic upgrade head`) al iniciar."""
     for carpeta in ("boletos", "recibos", os.path.join("blancos", "boletos"), os.path.join("blancos", "recibos")):
         os.makedirs(os.path.join(app.config["DOCUMENTOS_DIR"], carpeta), exist_ok=True)
     os.makedirs(app.config["DOC_TEMPLATES_DIR"], exist_ok=True)
+    os.makedirs(app.config["BACKUP_DIR"], exist_ok=True)
 
 
 def _registrar_blueprints(app):
-    from .routes import blancos, boletos, clientes, configuracion, historial, main, recibos
+    from .routes import backups, blancos, boletos, clientes, configuracion, historial, main, recibos
 
     app.register_blueprint(main.bp)
     app.register_blueprint(clientes.bp)
@@ -57,6 +57,7 @@ def _registrar_blueprints(app):
     app.register_blueprint(historial.bp)
     app.register_blueprint(configuracion.bp)
     app.register_blueprint(blancos.bp)
+    app.register_blueprint(backups.bp)
 
 
 def _registrar_context_processor(app):
@@ -64,10 +65,21 @@ def _registrar_context_processor(app):
     def inject_globals():
         from .routes.configuracion import get_config
 
-        base_dir = app.config["BASE_DIR"]
-        cfg = get_config(base_dir, app.config["CONFIG_CSV"])
         return {
-            "service_cfg": cfg,
-            "ultimo_boleto": counters.get_last_number(base_dir, "boleto"),
-            "ultimo_recibo": counters.get_last_number(base_dir, "recibo"),
+            "service_cfg": get_config(),
+            "ultimo_boleto": counters.get_last_number("boleto"),
+            "ultimo_recibo": counters.get_last_number("recibo"),
         }
+
+
+def _registrar_modo_mantenimiento(app):
+    @app.before_request
+    def _bloquear_durante_restauracion():
+        from . import backup
+
+        if backup.RESTORING:
+            return (
+                "Se está restaurando un backup. Volvé a cargar la página en unos segundos.",
+                503,
+                {"Retry-After": "10"},
+            )

@@ -6,6 +6,7 @@ plantillas HTML editables de `templates/` y genera el PDF final en la
 carpeta que corresponde, con el nombre de archivo obligatorio.
 """
 
+import base64
 import os
 from datetime import datetime
 
@@ -25,22 +26,22 @@ def _fecha_ddmmyyyy(fecha_iso: str) -> str:
     return datetime.now().strftime("%d-%m-%Y")
 
 
-def _service_context(base_dir: str) -> dict:
+def _service_context() -> dict:
     # Import diferido para evitar import circular con el blueprint.
-    from .routes.configuracion import get_config, _logo_dir
+    from .routes.configuracion import get_config, get_logo
 
-    cfg = get_config(base_dir, current_app.config["CONFIG_CSV"])
+    cfg = get_config()
     logo_path = ""
-    if cfg.get("logo"):
-        ruta = os.path.join(_logo_dir(base_dir), cfg["logo"])
-        if os.path.exists(ruta):
-            logo_path = "file://" + os.path.abspath(ruta)
+    logo = get_logo()
+    if logo:
+        contenido, mime = logo
+        logo_path = f"data:{mime};base64,{base64.b64encode(contenido).decode('ascii')}"
     return {**cfg, "logo_path": logo_path}
 
 
-def generar_pdf_boleto(base_dir: str, boleto: dict, cliente: dict) -> str:
+def generar_pdf_boleto(boleto: dict, cliente: dict) -> str:
     contexto = {
-        "service": _service_context(base_dir),
+        "service": _service_context(),
         "cliente": cliente,
         "boleto": boleto,
         "blanco": False,
@@ -55,9 +56,9 @@ def generar_pdf_boleto(base_dir: str, boleto: dict, cliente: dict) -> str:
     return destino
 
 
-def generar_pdf_recibo(base_dir: str, recibo: dict, cliente: dict) -> str:
+def generar_pdf_recibo(recibo: dict, cliente: dict) -> str:
     contexto = {
-        "service": _service_context(base_dir),
+        "service": _service_context(),
         "cliente": cliente,
         "recibo": recibo,
         "blanco": False,
@@ -72,11 +73,11 @@ def generar_pdf_recibo(base_dir: str, recibo: dict, cliente: dict) -> str:
     return destino
 
 
-def generar_pdf_blanco(base_dir: str, tipo: str) -> str:
+def generar_pdf_blanco(tipo: str) -> str:
     """Genera un boleto o recibo en blanco (sin datos de cliente y sin
     consumir numeración). `tipo` es 'boleto' o 'recibo'."""
     contexto = {
-        "service": _service_context(base_dir),
+        "service": _service_context(),
         "cliente": {campo: "" for campo in models.CLIENTE_FIELDS},
         "blanco": True,
     }

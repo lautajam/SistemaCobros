@@ -55,7 +55,7 @@ usarla, por ejemplo, para mostrar u ocultar un aviso:
 {{ service.direccion }}
 {{ service.localidad }}
 {{ service.codigo_postal }}
-{{ service.logo_path }}      -> ruta absoluta (file://) al logo, o "" si no hay logo cargado
+{{ service.logo_path }}      -> logo incrustado en la página (data URI), o "" si no hay logo cargado
 ```
 
 ## Variables de `cliente`

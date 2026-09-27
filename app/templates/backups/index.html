@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block titulo %}Backups{% endblock %}
+{% block contenido %}
+<h1>Backups</h1>
+<p class="subtitulo">
+    Un backup guarda <strong>todo</strong>: clientes, boletos, recibos, configuración, logo y los PDF generados.
+    Se guardan en la carpeta <strong>backups</strong> del proyecto, en tu PC (fuera de Docker).
+</p>
+
+<div class="ficha">
+    <p style="margin:0 0 8px 0;">
+        <strong>Backups automáticos:</strong>
+        {% if intervalo > 0 %}cada {{ intervalo|int if intervalo == intervalo|int else intervalo }} hs mientras la app está abierta (solo si hubo cambios){% else %}desactivados por intervalo{% endif %},
+        y <strong>siempre al apagar Docker</strong>. Se conservan los últimos {{ conservar }} automáticos; los manuales
+        y los previos a una restauración no se borran solos.
+    </p>
+    <p style="margin:0;">Cerrar la pestaña del navegador no afecta nada: los datos están guardados en la base de datos.</p>
+</div>
+
+<form method="post" action="{{ url_for('backups.crear') }}" style="margin:16px 0;">
+    <button class="boton verde" type="submit">Crear backup ahora</button>
+</form>
+
+<h2>Backups guardados</h2>
+{% if backups %}
+<table class="tabla">
+    <thead>
+        <tr><th>Fecha</th><th>Tipo</th><th>Archivo</th><th>Tamaño</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for b in backups %}
+        <tr>
+            <td>{{ b.fecha.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+            <td>{{ b.tipo }}</td>
+            <td>{{ b.nombre }}</td>
+            <td>{{ "%.1f"|format(b.bytes / 1024 / 1024) }} MB</td>
+            <td class="acciones">
+                <a class="boton chico secundario" href="{{ url_for('backups.descargar', nombre=b.nombre) }}">Descargar</a>
+                <form method="post" action="{{ url_for('backups.restaurar', nombre=b.nombre) }}" style="display:inline;"
+                      onsubmit="return pedirConfirmacion(this);">
+                    <input type="hidden" name="confirmacion">
+                    <button class="boton chico rojo" type="submit">Restaurar</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="vacio">Todavía no hay backups. Creá el primero con el botón de arriba.</div>
+{% endif %}
+
+<h2 style="margin-top:32px;">Restaurar desde un archivo</h2>
+<p class="subtitulo">
+    Elegí un backup (.zip) guardado en tu PC. <strong>Se reemplazan todos los datos actuales</strong> por los del backup
+    (antes se guarda un backup de seguridad de lo actual). Sirve para volver a un punto anterior o para cargar todo en una instalación nueva.
+</p>
+<form class="formulario" method="post" action="{{ url_for('backups.subir') }}" enctype="multipart/form-data"
+      onsubmit="return pedirConfirmacion(this);">
+    <div class="grupo-campo">
+        <label>Archivo de backup (.zip)</label>
+        <input type="file" name="archivo" accept=".zip" required>
+    </div>
+    <input type="hidden" name="confirmacion">
+    <div class="acciones-form">
+        <button class="boton rojo" type="submit">Subir y restaurar</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function pedirConfirmacion(form) {
+    var texto = prompt(
+        "ATENCIÓN: esto REEMPLAZA todos los datos actuales por los del backup.\n\n" +
+        "Escribí RESTAURAR para continuar:"
+    );
+    if (texto === null) { return false; }
+    form.confirmacion.value = texto;
+    return true;
+}
+</script>
+{% endblock %}

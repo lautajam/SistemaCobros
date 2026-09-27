@@ -1,8 +1,9 @@
 import os
 
-from flask import Blueprint, current_app, redirect, render_template, request, send_from_directory, url_for
+from flask import Blueprint, Response, redirect, render_template, request, url_for
 
-from .. import csv_utils, models
+from ..db import Session
+from ..models import Configuracion
 
 bp = Blueprint("configuracion", __name__, url_prefix="/configuracion")
 
@@ -17,61 +18,62 @@ VALORES_POR_DEFECTO = {
     "logo": "",
 }
 
-EXTENSIONES_LOGO_PERMITIDAS = {".png", ".jpg", ".jpeg", ".gif"}
+CAMPOS_TEXTO = ["nombre", "cuit", "telefono", "email", "direccion", "localidad", "codigo_postal"]
+
+TIPOS_LOGO = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+}
+
+TAMANO_MAXIMO_LOGO = 2 * 1024 * 1024
 
 
-def _logo_dir(base_dir):
-    directorio = os.path.join(base_dir, "data", "configuracion", "logo")
-    os.makedirs(directorio, exist_ok=True)
-    return directorio
-
-
-def get_config(base_dir, path=None):
+def get_config():
     """Lee la configuración del service. Si todavía no se configuró nada,
     devuelve valores por defecto (nunca falla ni lanza excepción)."""
-    path = path or os.path.join(base_dir, "data", "configuracion", "configuracion.csv")
-    csv_utils.ensure_csv(path, models.CONFIG_FIELDS)
-    filas = csv_utils.read_all(path, models.CONFIG_FIELDS)
     cfg = dict(VALORES_POR_DEFECTO)
-    if filas:
-        cfg.update({k: v for k, v in filas[0].items() if v})
+    fila = Session.get(Configuracion, 1)
+    if fila:
+        datos = fila.to_dict()
+        cfg.update({k: v for k, v in datos.items() if v and k in VALORES_POR_DEFECTO})
     return cfg
+
+
+def get_logo():
+    """Devuelve (bytes, mime) del logo cargado, o None si no hay."""
+    fila = Session.get(Configuracion, 1)
+    if fila and fila.logo_data:
+        return fila.logo_data, fila.logo_mime or "image/png"
+    return None
 
 
 @bp.route("/", methods=["GET", "POST"])
 def form():
-    base_dir = current_app.config["BASE_DIR"]
-    path = current_app.config["CONFIG_CSV"]
-    cfg = get_config(base_dir, path)
-
     if request.method == "POST":
-        nueva_cfg = {
-            "nombre": (request.form.get("nombre") or "").strip(),
-            "cuit": (request.form.get("cuit") or "").strip(),
-            "telefono": (request.form.get("telefono") or "").strip(),
-            "email": (request.form.get("email") or "").strip(),
-            "direccion": (request.form.get("direccion") or "").strip(),
-            "localidad": (request.form.get("localidad") or "").strip(),
-            "codigo_postal": (request.form.get("codigo_postal") or "").strip(),
-            "logo": cfg.get("logo", ""),
-        }
+        fila = Session.get(Configuracion, 1) or Configuracion(id=1)
+        for campo in CAMPOS_TEXTO:
+            setattr(fila, campo, (request.form.get(campo) or "").strip())
         archivo = request.files.get("logo_file")
         if archivo and archivo.filename:
             ext = os.path.splitext(archivo.filename)[1].lower()
-            if ext in EXTENSIONES_LOGO_PERMITIDAS:
-                nombre_logo = f"logo{ext}"
-                archivo.save(os.path.join(_logo_dir(base_dir), nombre_logo))
-                nueva_cfg["logo"] = nombre_logo
-        csv_utils.write_all(path, models.CONFIG_FIELDS, [nueva_cfg])
+            contenido = archivo.read(TAMANO_MAXIMO_LOGO + 1)
+            if ext in TIPOS_LOGO and 0 < len(contenido) <= TAMANO_MAXIMO_LOGO:
+                fila.logo = f"logo{ext}"
+                fila.logo_mime = TIPOS_LOGO[ext]
+                fila.logo_data = contenido
+        Session.add(fila)
+        Session.commit()
         return redirect(url_for("configuracion.form"))
 
-    return render_template("configuracion/form.html", cfg=cfg)
+    return render_template("configuracion/form.html", cfg=get_config())
 
 
 @bp.route("/logo")
 def logo():
-    base_dir = current_app.config["BASE_DIR"]
-    cfg = get_config(base_dir, current_app.config["CONFIG_CSV"])
-    if not cfg.get("logo"):
+    datos = get_logo()
+    if not datos:
         return "", 404
-    return send_from_directory(_logo_dir(base_dir), cfg["logo"])
+    contenido, mime = datos
+    return Response(contenido, mimetype=mime)

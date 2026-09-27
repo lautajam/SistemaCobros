@@ -1,4 +1,22 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-service_app}
+      - POSTGRES_USER=${POSTGRES_USER:-service_app}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - TZ=${TZ:-America/Argentina/Buenos_Aires}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - service-network
+    restart: unless-stopped
+
   app:
     build: .
     image: service-app:latest
@@ -6,39 +24,31 @@ services:
       - "5000:5000"
     environment:
       - SECRET_KEY=${SECRET_KEY:-service-tecnico-dev}
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-service_app}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-service_app}
+      - BACKUP_DIR=/backups
+      - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-6}
+      - BACKUP_KEEP_AUTO=${BACKUP_KEEP_AUTO:-10}
+      - TZ=${TZ:-America/Argentina/Buenos_Aires}
     volumes:
-      - ./data:/app/data
+      # PDF generados (carpeta visible en tu PC).
       - ./documentos:/app/documentos
+      # Backups (carpeta de tu PC, fuera de Docker): aquí se guardan y desde
+      # aquí se pueden restaurar.
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    # Tiempo que Docker espera al apagar antes de forzar el cierre: tiene que
+    # alcanzar para terminar pedidos en curso y hacer el backup final.
+    stop_grace_period: 120s
     networks:
       - service-network
     restart: unless-stopped
-
-  # -------------------------------------------------------------------------
-  # Futuro: base de datos real. Hoy la app persiste todo en CSV
-  # (ver app/csv_utils.py) y este servicio no se usa. El día que se migre esa
-  # capa a PostgreSQL: descomentar este bloque, la variable DATABASE_URL de
-  # "app" (más abajo) y el volumen "db_data" al final del archivo.
-  # -------------------------------------------------------------------------
-  # db:
-  #   image: postgres:16-alpine
-  #   environment:
-  #     - POSTGRES_DB=service_app
-  #     - POSTGRES_USER=service_app
-  #     - POSTGRES_PASSWORD=changeme
-  #   volumes:
-  #     - db_data:/var/lib/postgresql/data
-  #   networks:
-  #     - service-network
-  #   restart: unless-stopped
-  #
-  # Y en "app.environment" agregar:
-  #   - DATABASE_URL=postgresql://service_app:changeme@db:5432/service_app
-  # y en "app.depends_on":
-  #   - db
 
 networks:
   service-network:
     driver: bridge
 
-# volumes:
-#   db_data:
+volumes:
+  # Archivos de la base de datos PostgreSQL (administrados por Docker).
+  db_data:

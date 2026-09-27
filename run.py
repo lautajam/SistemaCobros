@@ -1,11 +1,12 @@
 """
 Punto de entrada de la aplicación.
 
-Uso:
-    python run.py
+Uso normal (Docker, con la base de datos PostgreSQL incluida):
+    docker compose up --build
 
-Luego abrí en el navegador:
-    http://127.0.0.1:5000
+Gunicorn carga `app` desde este archivo (ver Dockerfile / gunicorn.conf.py).
+Ejecutar `python run.py` directamente solo sirve para desarrollo, con una
+base PostgreSQL accesible en la variable de entorno DATABASE_URL.
 """
 
 from app import create_app

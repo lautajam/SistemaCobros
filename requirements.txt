@@ -1,13 +1,14 @@
 Flask>=2.3,<4
 Jinja2>=3.1
 pdfkit>=1.0
+SQLAlchemy>=2.0,<3
+psycopg[binary]>=3.1
+alembic>=1.13
 gunicorn>=21.2; platform_system != "Windows"
 
 # gunicorn no corre en Windows: se usa solo dentro del contenedor Docker
-# (Linux). En Windows seguís usando "python run.py" como siempre.
+# (Linux). La app está pensada para correr con "docker compose up".
 
-# pdfkit depende del binario del sistema "wkhtmltopdf".
-# Instalarlo por separado según el sistema operativo:
-#   Windows / macOS: https://wkhtmltopdf.org/downloads.html
-#   Debian/Ubuntu:   sudo apt-get install wkhtmltopdf
-#   Fedora:          sudo dnf install wkhtmltopdf
+# pdfkit depende del binario del sistema "wkhtmltopdf" y los backups del
+# programa "pg_dump"/"pg_restore" (cliente de PostgreSQL). Ambos ya vienen
+# instalados dentro de la imagen Docker (ver Dockerfile).

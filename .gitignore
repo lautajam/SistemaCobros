@@ -18,10 +18,8 @@ docker-compose.override.yml
 .env.*
 !.env.example
 
-# Datos persistentes de la app: se crean solos en el primer arranque
-# (ver app/__init__.py -> _inicializar_almacenamiento), no se versionan.
-/data/**/*.csv
-/data/configuracion/logo/*
+# Backups (contienen todos los datos de clientes: no subir al repositorio)
+/backups/
 
 # PDFs generados (documentos/boletos, documentos/recibos, documentos/blancos)
 /documentos/**/*.pdf
