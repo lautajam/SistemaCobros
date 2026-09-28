@@ -46,7 +46,7 @@
             {% for b in boletos %}
             <tr>
                 <td class="nombre principal" data-label="N.º"><a href="{{ url_for('boletos.detalle', boleto_id=b.id) }}">N.º {{ b.numero }}</a></td>
-                <td data-label="Fecha">{{ b.fecha }}</td>
+                <td data-label="Fecha">{{ b.fecha|fecha }}</td>
                 <td data-label="Equipo">{{ b.equipo or "—" }}</td>
                 <td data-label="Marca / Modelo">{{ (b.marca ~ " " ~ b.modelo)|trim or "—" }}</td>
                 <td class="acciones"><a class="btn btn-secondary btn-sm" href="{{ url_for('boletos.detalle', boleto_id=b.id) }}">Ver</a></td>
@@ -68,7 +68,7 @@
             {% for r in recibos %}
             <tr>
                 <td class="nombre principal" data-label="N.º"><a href="{{ url_for('recibos.detalle', recibo_id=r.id) }}">N.º {{ r.numero }}</a></td>
-                <td data-label="Fecha">{{ r.fecha }}</td>
+                <td data-label="Fecha">{{ r.fecha|fecha }}</td>
                 <td data-label="Trabajo">{{ r.trabajo or "—" }}</td>
                 <td data-label="Importe">$ {{ r.importe|pesos }}</td>
                 <td class="acciones"><a class="btn btn-secondary btn-sm" href="{{ url_for('recibos.detalle', recibo_id=r.id) }}">Ver</a></td>

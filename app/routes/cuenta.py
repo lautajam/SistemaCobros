@@ -53,7 +53,7 @@ def datos():
     """Cambia el nombre y el usuario de la cuenta. Solo lo puede hacer el administrador."""
     if not current_user.es_admin:
         abort(403)
-    nombre = (request.form.get("nombre") or "").strip()
+    nombre = auth.normalizar_nombre(request.form.get("nombre"))
     nombre_usuario = auth.normalizar_usuario(request.form.get("usuario"))
     valores = {"nombre": nombre, "usuario": nombre_usuario}
 
@@ -61,9 +61,7 @@ def datos():
     if not problema and not (2 <= len(nombre) <= 80):
         problema = "El nombre tiene que tener entre 2 y 80 caracteres."
     if not problema:
-        otro = Session.scalar(select(Usuario).where(Usuario.usuario == nombre_usuario, Usuario.id != current_user.id))
-        if otro:
-            problema = "Ya existe otro usuario con ese nombre de usuario."
+        problema = auth.nombre_o_usuario_repetido(nombre, nombre_usuario, current_user.id)
     if problema:
         return _mostrar(error_datos=problema, estado=400, valores=valores)
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon %}
+{% from "_macros.html" import icon, fecha_input %}
 {% block titulo %}Historial{% endblock %}
 {% block contenido %}
 <div class="page-head">
@@ -20,7 +20,7 @@
                    placeholder="{{ 'Número, cliente, equipo o serie' if tab == 'boletos' else 'Número, cliente, pago o importe' }}"
                    aria-label="Buscar">
         </div>
-        <input class="input" type="date" name="fecha" value="{{ fecha }}" aria-label="Filtrar por fecha">
+        {{ fecha_input("fecha", fecha, "f-fecha-filtro") }}
         <button class="btn btn-secondary" type="submit">Filtrar</button>
         {% if q or fecha %}<a class="btn btn-ghost" href="{{ url_for('historial.index', tab=tab) }}">Limpiar</a>{% endif %}
     </form>
@@ -40,8 +40,8 @@
             {% for reg in registros %}
             <tr>
                 {% if tab == 'boletos' %}
-                <td class="nombre principal" data-label="N.º"><a href="{{ url_for('boletos.detalle', boleto_id=reg.id) }}">N.º {{ reg.numero }}</a></td>
-                <td data-label="Fecha">{{ reg.fecha }}</td>
+                <td class="nombre principal" data-label="N.º"><a href="{{ url_for('boletos.detalle', boleto_id=reg.id) }}">N.º {{ reg.numero }}</a>{% if reg.id in editados %} <span class="badge badge-aviso">Editado</span>{% endif %}</td>
+                <td data-label="Fecha">{{ reg.fecha|fecha }}</td>
                 <td data-label="Cliente">{{ reg.cliente_nombre }}</td>
                 <td data-label="Equipo">{{ reg.equipo or "—" }}</td>
                 <td data-label="Marca / modelo">{{ (reg.marca ~ " " ~ reg.modelo)|trim or "—" }}</td>
@@ -50,8 +50,8 @@
                     <a class="btn btn-secondary btn-sm" href="{{ url_for('boletos.pdf', boleto_id=reg.id) }}" target="_blank" rel="noopener">{{ icon("printer") }} PDF</a>
                 </td>
                 {% else %}
-                <td class="nombre principal" data-label="N.º"><a href="{{ url_for('recibos.detalle', recibo_id=reg.id) }}">N.º {{ reg.numero }}</a></td>
-                <td data-label="Fecha">{{ reg.fecha }}</td>
+                <td class="nombre principal" data-label="N.º"><a href="{{ url_for('recibos.detalle', recibo_id=reg.id) }}">N.º {{ reg.numero }}</a>{% if reg.id in editados %} <span class="badge badge-aviso">Editado</span>{% endif %}</td>
+                <td data-label="Fecha">{{ reg.fecha|fecha }}</td>
                 <td data-label="Cliente">{{ reg.cliente_nombre }}</td>
                 <td data-label="Pago">{{ reg.forma_pago or "—" }}</td>
                 <td data-label="Importe">$ {{ reg.importe|pesos }}</td>

@@ -28,6 +28,7 @@
     <a class="atajo" href="{{ url_for('blancos.boleto') }}">{{ icon("file") }} Boleto en blanco</a>
     <a class="atajo" href="{{ url_for('blancos.recibo') }}">{{ icon("file") }} Recibo en blanco</a>
     {% if puede('usuarios:gestionar') %}<a class="atajo" href="{{ url_for('usuarios.lista') }}">{{ icon("shield") }} Usuarios</a>{% endif %}
+    {% if puede('tipos:gestionar') %}<a class="atajo" href="{{ url_for('tipos.lista') }}">{{ icon("tool") }} Tipos de equipo</a>{% endif %}
     {% if puede('backups:gestionar') %}<a class="atajo" href="{{ url_for('backups.index') }}">{{ icon("database") }} Backups</a>{% endif %}
     {% if puede('configuracion:gestionar') %}<a class="atajo" href="{{ url_for('configuracion.form') }}">{{ icon("settings") }} Configuración</a>{% endif %}
 </div>

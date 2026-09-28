@@ -34,12 +34,7 @@ def _validar_datos(nombre, nombre_usuario, ignorar_id=None):
         return problema
     if not (2 <= len(nombre) <= 80):
         return "El nombre tiene que tener entre 2 y 80 caracteres."
-    consulta = select(Usuario).where(Usuario.usuario == nombre_usuario)
-    if ignorar_id is not None:
-        consulta = consulta.where(Usuario.id != ignorar_id)
-    if Session.scalar(consulta):
-        return "Ya existe un usuario con ese nombre de usuario."
-    return None
+    return auth.nombre_o_usuario_repetido(nombre, nombre_usuario, ignorar_id)
 
 
 @bp.route("/")
@@ -52,13 +47,12 @@ def lista():
 @bp.route("/nuevo", methods=["GET", "POST"])
 @permiso(PERMISO)
 def nuevo():
-    valores = {"nombre": "", "usuario": "", "debe_cambiar": True}
+    valores = {"nombre": "", "usuario": ""}
     error = None
     if request.method == "POST":
         valores = {
-            "nombre": (request.form.get("nombre") or "").strip(),
+            "nombre": auth.normalizar_nombre(request.form.get("nombre")),
             "usuario": auth.normalizar_usuario(request.form.get("usuario")),
-            "debe_cambiar": request.form.get("debe_cambiar") == "1",
         }
         clave = request.form.get("password") or ""
         error = _validar_datos(valores["nombre"], valores["usuario"]) or auth.validar_clave(clave, valores["usuario"])
@@ -66,7 +60,7 @@ def nuevo():
             Session.add(Usuario(
                 usuario=valores["usuario"], nombre=valores["nombre"], rol=ROL_TECNICO,
                 password_hash=auth.hashear(clave), activo=True,
-                debe_cambiar_password=valores["debe_cambiar"],
+                debe_cambiar_password=True,  # siempre: la clave inicial la conoce el admin
             ))
             Session.commit()
             flash(f"Técnico «{valores['nombre']}» creado.", "success")
@@ -82,7 +76,7 @@ def editar(usuario_id):
     error = None
     if request.method == "POST":
         valores = {
-            "nombre": (request.form.get("nombre") or "").strip(),
+            "nombre": auth.normalizar_nombre(request.form.get("nombre")),
             "usuario": auth.normalizar_usuario(request.form.get("usuario")),
         }
         error = _validar_datos(valores["nombre"], valores["usuario"], ignorar_id=tecnico.id)

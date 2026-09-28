@@ -23,7 +23,7 @@
         <h2>{{ icon("key") }} Contraseña inicial</h2>
         <div class="stack" style="gap:12px">
             {{ campo("Contraseña", "password", "", tipo="password", requerido=True, extra='minlength="8" autocomplete="new-password"') }}
-            <label class="check"><input type="checkbox" name="debe_cambiar" value="1" {{ "checked" if valores.debe_cambiar }}> Que la cambie en su primer ingreso</label>
+            <p class="hint">En su primer ingreso el sistema le va a pedir que la cambie por una propia.</p>
         </div>
     </div>
     {% endif %}

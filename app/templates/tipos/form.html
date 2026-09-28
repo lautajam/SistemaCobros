@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, campo %}
+{% block titulo %}Cambiar nombre del tipo{% endblock %}
+{% block contenido %}
+<a class="back-link" href="{{ url_for('tipos.lista') }}">{{ icon("arrow-left") }} Tipos de equipo</a>
+<div class="page-head">
+    <div class="titulo">
+        <h1>Cambiar nombre</h1>
+        <p class="sub">El cambio vale para los documentos nuevos. Los boletos y recibos ya emitidos siguen mostrando «{{ tipo.nombre }}».</p>
+    </div>
+</div>
+
+{% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} <span>{{ error }}</span></div>{% endif %}
+
+<form class="card card-pad" method="post" data-lock>
+    {{ csrf() }}
+    <div class="stack" style="gap:14px">
+        {{ campo("Nombre del tipo", "nombre", nombre, requerido=True, extra='maxlength="60" autocomplete="off"') }}
+    </div>
+    <div class="form-actions">
+        <button class="btn" type="submit">{{ icon("check") }} Guardar</button>
+        <a class="btn btn-secondary" href="{{ url_for('tipos.lista') }}">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

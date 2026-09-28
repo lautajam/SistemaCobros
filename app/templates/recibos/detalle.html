@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, dato, csrf %}
+{% from "_macros.html" import icon, dato, csrf, historial_cambios %}
 {% block titulo %}Recibo N.º {{ recibo.numero }}{% endblock %}
 {% block contenido %}
 <a class="back-link" href="{{ url_for('historial.index', tab='recibos') }}">{{ icon("arrow-left") }} Historial</a>
@@ -9,8 +9,10 @@
         <h1>Recibo N.º {{ recibo.numero }}</h1>
         <p class="sub">
             {% if cliente %}<a href="{{ url_for('clientes.detalle', cliente_id=cliente.id) }}">{{ cliente.nombre }}</a>{% else %}Cliente no encontrado{% endif %}
-            · {{ recibo.fecha }}
+            · {{ recibo.fecha|fecha }}
             {% if creador %}· Creado por {{ creador.nombre_visible }}{% endif %}
+            {% set editado = historial|selectattr('accion', 'equalto', 'editado')|list %}
+            {% if editado %}· <span class="badge badge-aviso">Editado por {{ editado[0].usuario_texto }} el {{ editado[0].momento|fecha_hora }}</span>{% endif %}
             {% if boleto %}· <a href="{{ url_for('boletos.detalle', boleto_id=boleto.id) }}">Boleto N.º {{ boleto.numero }}</a>{% endif %}
         </p>
     </div>
@@ -32,9 +34,12 @@
     <dl class="detalles">
         <div><dt>Importe</dt><dd><strong style="font-size:1.4rem">$ {{ recibo.importe|pesos }}</strong></dd></div>
         {{ dato("Forma de pago", recibo.forma_pago) }}
+        {{ dato("Tipo de equipo", recibo.equipo) }}
         {{ dato("Trabajo", recibo.trabajo) }}
         {% if recibo.descripcion %}<div class="ancho"><dt>Descripción</dt><dd class="texto-largo">{{ recibo.descripcion }}</dd></div>{% endif %}
         {% if recibo.observaciones %}<div class="ancho"><dt>Observaciones</dt><dd class="texto-largo">{{ recibo.observaciones }}</dd></div>{% endif %}
     </dl>
 </div>
+
+{% if puede('auditoria:ver') %}{{ historial_cambios(historial) }}{% endif %}  {# el detalle de los cambios es solo para el admin #}
 {% endblock %}

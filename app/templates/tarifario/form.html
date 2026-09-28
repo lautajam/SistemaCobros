@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, campo, area, csrf, categoria_trabajo %}
+{% block titulo %}{{ "Editar trabajo" if trabajo else "Nuevo trabajo" }}{% endblock %}
+{% block contenido %}
+<a class="back-link" href="{{ url_for('tarifario.lista') }}">{{ icon("arrow-left") }} Tarifario</a>
+<div class="page-head">
+    <h1>{{ "Editar trabajo" if trabajo else "Nuevo trabajo" }}</h1>
+</div>
+
+{% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} <span>{{ error }}</span></div>{% endif %}
+
+<form class="card card-pad" method="post" data-lock>
+    {{ csrf() }}
+    <div class="form-grid cols-2">
+        {{ campo("Nombre del trabajo", "nombre", valores.nombre, requerido=True, extra='maxlength="120" autocomplete="off"') }}
+        {{ categoria_trabajo(valores.categoria) }}
+    </div>
+
+    {{ area("Descripción breve", "descripcion", valores.descripcion, placeholder="Qué incluye este trabajo") }}
+
+    <div class="form-grid cols-2">
+        <div class="field">
+            <label for="f-precio">Precio ($)</label>
+            <input id="f-precio" type="number" name="precio" value="{{ valores.precio }}" step="0.01" min="0.01" inputmode="decimal" required>
+            <label class="check" style="margin-top:8px"><input type="checkbox" name="precio_desde" value="1" {{ "checked" if valores.precio_desde }}> Es un precio «Desde» (presupuesto variable)</label>
+        </div>
+        <div class="field">
+            <label for="f-complejidad">Complejidad</label>
+            <select id="f-complejidad" name="complejidad" required>
+                <option value="">Elegí una opción…</option>
+                {% for clave, etiqueta in complejidades.items() %}
+                <option value="{{ clave }}" {{ "selected" if clave == valores.complejidad }}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button class="btn" type="submit">{{ icon("check") }} {{ "Guardar cambios" if trabajo else "Agregar al tarifario" }}</button>
+        <a class="btn btn-secondary" href="{{ url_for('tarifario.lista') }}">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

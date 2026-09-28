@@ -22,6 +22,24 @@ def _campos_desde(formulario):
     }
 
 
+ETIQUETAS_OBLIGATORIAS = {
+    "nombre": "el nombre", "dni_cuit": "el DNI / CUIT", "telefono": "el teléfono", "email": "el email",
+    "direccion": "la dirección", "localidad": "la localidad", "codigo_postal": "el código postal",
+}
+
+
+def validar_cliente(datos):
+    """Todos los datos del cliente son obligatorios, salvo las observaciones (siempre opcionales),
+    tanto al crearlo como al modificarlo. Devuelve un mensaje de error o None."""
+    faltan = [texto for campo, texto in ETIQUETAS_OBLIGATORIAS.items() if not (datos.get(campo) or "").strip()]
+    if faltan:
+        return "Falta completar: " + ", ".join(faltan) + "."
+    email = datos["email"].strip()
+    if "@" not in email or "." not in email.split("@", 1)[1] or " " in email:
+        return "El email no es válido."
+    return None
+
+
 def _criterio_busqueda(q, incluir_email):
     campos = [Cliente.nombre, Cliente.dni_cuit, Cliente.telefono]
     if incluir_email:
@@ -51,9 +69,12 @@ def lista():
 @permiso("clientes:crear")
 def nuevo():
     if request.method == "POST":
+        error = validar_cliente(request.form)
+        if error:
+            return render_template("clientes/form.html", cliente=None, valores=_campos_desde(request.form), error=error), 400
         cliente = crear_cliente(request.form)
         return redirect(url_for("clientes.detalle", cliente_id=cliente["id"]))
-    return render_template("clientes/form.html", cliente=None)
+    return render_template("clientes/form.html", cliente=None, valores={})
 
 
 @bp.route("/api/crear-rapido", methods=["POST"])
@@ -62,8 +83,9 @@ def crear_rapido():
     """Endpoint AJAX: crea un cliente sin recargar la página (usado desde el
     formulario de boleto/recibo)."""
     datos = request.get_json(force=True, silent=True) or {}
-    if not (datos.get("nombre") or "").strip():
-        return jsonify({"error": "El nombre es obligatorio."}), 400
+    error = validar_cliente(datos)
+    if error:
+        return jsonify({"error": error}), 400
     cliente = crear_cliente(datos)
     return jsonify(cliente)
 
@@ -100,9 +122,12 @@ def editar(cliente_id):
     if not cliente:
         return redirect(url_for("clientes.lista"))
     if request.method == "POST":
+        error = validar_cliente(request.form)
+        if error:
+            return render_template("clientes/form.html", cliente=cliente, valores=_campos_desde(request.form), error=error), 400
         repo.actualizar(Cliente, cliente_id, _campos_desde(request.form))
         return redirect(url_for("clientes.detalle", cliente_id=cliente_id))
-    return render_template("clientes/form.html", cliente=cliente)
+    return render_template("clientes/form.html", cliente=cliente, valores=cliente)
 
 
 @bp.route("/<cliente_id>/eliminar", methods=["POST"])

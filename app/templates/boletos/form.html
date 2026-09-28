@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, campo, area, csrf %}
+{% from "_macros.html" import icon, campo, area, csrf, campo_fecha, tipo_equipo %}
 {% block titulo %}{{ "Editar boleto" if boleto else "Nuevo boleto" }}{% endblock %}
 {% block contenido %}
 <a class="back-link" href="{{ url_for('boletos.detalle', boleto_id=boleto.id) if boleto else url_for('main.index') }}">{{ icon("arrow-left") }} Volver</a>
@@ -7,6 +7,7 @@
     <h1>{{ "Editar boleto N.º " ~ boleto.numero if boleto else "Nuevo boleto" }}</h1>
 </div>
 
+{% if boleto %}<div class="callout callout-info" style="margin-bottom:16px">{{ icon("shield") }} <span>Este documento ya fue emitido. Si lo modificás, el cambio queda registrado con tu usuario, la fecha y los valores anteriores, y se ve en su pantalla.</span></div>{% endif %}
 {% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} {{ error }}</div>{% endif %}
 
 <form class="card card-pad" method="post" data-lock>
@@ -26,7 +27,7 @@
     <div class="form-section">
         <h2>{{ icon("clock") }} Recepción</h2>
         <div class="form-grid cols-2">
-            {{ campo("Fecha", "fecha", boleto.fecha if boleto else fecha_hoy|default(""), tipo="date") }}
+            {{ campo_fecha("Fecha", "fecha", boleto.fecha if boleto else fecha_hoy|default("")) }}
             {{ campo("Hora", "hora", boleto.hora if boleto else "", tipo="time") }}
         </div>
     </div>
@@ -34,14 +35,10 @@
     <div class="form-section">
         <h2>{{ icon("monitor") }} Equipo</h2>
         <div class="form-grid cols-3">
-            {{ campo("Tipo", "equipo", boleto.equipo if boleto else "", placeholder="Notebook, PC, impresora…", extra='list="tipos-equipo" autocomplete="off"') }}
+            {{ tipo_equipo(boleto.equipo if boleto else "", "Tipo") }}
             {{ campo("Marca", "marca", boleto.marca if boleto else "") }}
             {{ campo("Modelo", "modelo", boleto.modelo if boleto else "") }}
         </div>
-        <datalist id="tipos-equipo">
-            <option value="PC"><option value="Notebook"><option value="All in one"><option value="Impresora">
-            <option value="Monitor"><option value="Celular"><option value="Tablet"><option value="Consola">
-        </datalist>
         <div class="form-grid" style="margin-top:14px">
             {{ campo("N.º de serie", "numero_serie", boleto.numero_serie if boleto else "") }}
             {{ area("Problema informado", "problema", boleto.problema if boleto else "", placeholder="¿Qué falla tiene?") }}
@@ -56,7 +53,7 @@
                 {{ area("Accesorios entregados", "accesorios", boleto.accesorios if boleto else "", placeholder="Cargador, mouse, funda…") }}
                 {{ area("Estado físico", "estado_fisico", boleto.estado_fisico if boleto else "", placeholder="Rayones, golpes, faltantes…") }}
             </div>
-            {{ area("Observaciones", "observaciones", boleto.observaciones if boleto else "") }}
+            {{ area("Observaciones (opcional)", "observaciones", boleto.observaciones if boleto else "") }}
         </div>
     </details>
 

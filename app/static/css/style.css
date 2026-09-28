@@ -666,3 +666,34 @@ dialog.modal .modal-acciones .btn { flex: 1 1 120px; }
 .badge-gris { background: var(--surface-2); color: var(--muted); }
 .badge-aviso { background: var(--warning-soft); color: var(--warning); }
 .badge-rol-admin { background: var(--primary); color: var(--on-primary); }
+.badge-rojo { background: var(--danger-soft); color: var(--danger); }
+
+
+/* ---------- 18. Fechas dd/mm/aaaa y tipos de equipo ---------- */
+.input-fecha { position: relative; }
+.input-fecha > input[data-fecha] { padding-right: 48px !important; }
+.btn-calendario {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    display: grid; place-items: center; width: 40px; height: 40px;
+    border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer;
+}
+.btn-calendario:hover { background: var(--surface-2); color: var(--text); }
+/* Selector de calendario nativo: invisible, solo se usa para elegir el día */
+.input-fecha > .fecha-nativa {
+    position: absolute !important; right: 0; bottom: 0;
+    width: 1px !important; height: 1px !important; min-height: 0 !important;
+    padding: 0 !important; border: 0 !important; opacity: 0; pointer-events: none;
+}
+.toolbar .input-fecha { flex: 0 1 190px; }
+.toolbar select.input { flex: 0 1 200px; }
+
+.fila-agregar { display: grid; gap: 12px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 640px) { .fila-agregar { grid-template-columns: 1fr auto; } .fila-agregar .btn { min-width: 140px; } }
+
+/* Historial de modificaciones de boletos/recibos */
+.cambios { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.cambios > li { padding-left: 14px; border-left: 3px solid var(--warning); }
+.cambio-quien { margin: 0 0 6px; }
+.cambios ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.cambios del { color: var(--danger); }
+.cambios ins { color: var(--success); text-decoration: none; font-weight: 600; }

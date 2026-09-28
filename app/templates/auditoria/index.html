@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block titulo %}Auditoría{% endblock %}
+{% block contenido %}
+<div class="page-head">
+    <div class="titulo">
+        <h1>Auditoría</h1>
+        <p class="sub">Todo lo que un administrador modificó o eliminó en boletos y recibos ya emitidos. Esto no aparece en los PDF.</p>
+    </div>
+</div>
+
+{% if registros %}
+<div class="card card-pad">
+    <ol class="cambios">
+        {% for h in registros %}
+        <li>
+            <p class="cambio-quien">
+                <strong>{{ h.accion|capitalize }}</strong>
+                {% if h.accion == 'eliminado' %}{{ h.documento }} N.º {{ h.numero }}{% else %}
+                <a href="{{ url_for('boletos.detalle', boleto_id=h.documento_id) if h.documento == 'boleto' else url_for('recibos.detalle', recibo_id=h.documento_id) }}">{{ h.documento }} N.º {{ h.numero }}</a>{% endif %}
+                por <strong>{{ h.usuario_texto or "usuario eliminado" }}</strong> el {{ h.momento|fecha_hora }}
+            </p>
+            <ul>
+                {% for c in h.cambios %}
+                <li>{% if h.accion == 'eliminado' %}<span class="muted">{{ c.etiqueta }}:</span> {{ c.antes }}{% else %}<span class="muted">{{ c.etiqueta }}:</span> <del>{{ c.antes }}</del> → <ins>{{ c.despues }}</ins>{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endfor %}
+    </ol>
+</div>
+{% else %}
+<div class="card empty">{{ icon("shield") }}<p>Todavía no se modificó ni eliminó ningún boleto o recibo.</p></div>
+{% endif %}
+{% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, dato, csrf %}
+{% from "_macros.html" import icon, dato, csrf, historial_cambios %}
 {% block titulo %}Boleto N.º {{ boleto.numero }}{% endblock %}
 {% block contenido %}
 <a class="back-link" href="{{ url_for('historial.index', tab='boletos') }}">{{ icon("arrow-left") }} Historial</a>
@@ -9,8 +9,10 @@
         <h1>Boleto N.º {{ boleto.numero }}</h1>
         <p class="sub">
             {% if cliente %}<a href="{{ url_for('clientes.detalle', cliente_id=cliente.id) }}">{{ cliente.nombre }}</a>{% else %}Cliente no encontrado{% endif %}
-            · {{ boleto.fecha }}{% if boleto.hora %} {{ boleto.hora }}{% endif %}
+            · {{ boleto.fecha|fecha }}{% if boleto.hora %} {{ boleto.hora }}{% endif %}
             {% if creador %}· Creado por {{ creador.nombre_visible }}{% endif %}
+            {% set editado = historial|selectattr('accion', 'equalto', 'editado')|list %}
+            {% if editado %}· <span class="badge badge-aviso">Editado por {{ editado[0].usuario_texto }} el {{ editado[0].momento|fecha_hora }}</span>{% endif %}
         </p>
     </div>
     <div class="page-actions">
@@ -50,7 +52,7 @@
             {% for r in recibos %}
             <tr>
                 <td class="nombre principal" data-label="N.º"><a href="{{ url_for('recibos.detalle', recibo_id=r.id) }}">N.º {{ r.numero }}</a></td>
-                <td data-label="Fecha">{{ r.fecha }}</td>
+                <td data-label="Fecha">{{ r.fecha|fecha }}</td>
                 <td data-label="Trabajo">{{ r.trabajo or "—" }}</td>
                 <td data-label="Importe">$ {{ r.importe|pesos }}</td>
                 <td class="acciones"><a class="btn btn-secondary btn-sm" href="{{ url_for('recibos.detalle', recibo_id=r.id) }}">Ver</a></td>
@@ -62,4 +64,6 @@
 {% else %}
 <div class="card empty">{{ icon("inbox") }}<p>Todavía no hay recibos para este boleto.</p></div>
 {% endif %}
+
+{% if puede('auditoria:ver') %}{{ historial_cambios(historial) }}{% endif %}  {# el detalle de los cambios es solo para el admin #}
 {% endblock %}

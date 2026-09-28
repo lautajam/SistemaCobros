@@ -1,13 +1,12 @@
 import logging
 import os
 from datetime import timedelta
-from decimal import Decimal, InvalidOperation
 
 from flask import Flask
 from flask_login import current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from . import auth, counters, db, settings
+from . import auth, categorias_trabajo, counters, db, fechas, formatos, models, settings, tipos
 
 log = logging.getLogger(__name__)
 
@@ -66,20 +65,23 @@ def create_app():
 def _inicializar_carpetas(app):
     """Crea las carpetas de documentos si todavía no existen. El esquema de la
     base de datos lo crea Alembic (`alembic upgrade head`) al iniciar."""
-    for carpeta in ("boletos", "recibos", os.path.join("blancos", "boletos"), os.path.join("blancos", "recibos")):
+    for carpeta in ("boletos", "recibos", "tarifario", os.path.join("blancos", "boletos"), os.path.join("blancos", "recibos")):
         os.makedirs(os.path.join(app.config["DOCUMENTOS_DIR"], carpeta), exist_ok=True)
     os.makedirs(app.config["DOC_TEMPLATES_DIR"], exist_ok=True)
 
 
 def _registrar_blueprints(app):
     from .routes import (
-        auth as rutas_auth, backups, blancos, boletos, clientes, configuracion, cuenta, historial, main,
-        recibos, usuarios,
+        auditoria as rutas_auditoria, auth as rutas_auth, backups, blancos, boletos, clientes, configuracion, cuenta, historial, main,
+        recibos, tarifario, tipos as rutas_tipos, usuarios,
     )
 
     app.register_blueprint(rutas_auth.bp)
     app.register_blueprint(cuenta.bp)
     app.register_blueprint(usuarios.bp)
+    app.register_blueprint(rutas_tipos.bp)
+    app.register_blueprint(rutas_auditoria.bp)
+    app.register_blueprint(tarifario.bp)
     app.register_blueprint(main.bp)
     app.register_blueprint(clientes.bp)
     app.register_blueprint(boletos.bp)
@@ -94,12 +96,15 @@ def _registrar_filtros(app):
     @app.template_filter("pesos")
     def pesos(valor):
         """45000.5 -> '45.000,50' (formato argentino). Vacío -> '0,00'."""
-        try:
-            numero = Decimal(str(valor).strip() or "0")
-        except InvalidOperation:
-            return valor
-        texto = f"{numero:,.2f}"
-        return texto.replace(",", "\0").replace(".", ",").replace("\0", ".")
+        return formatos.pesos(valor)
+
+    @app.template_filter("fecha")
+    def fecha(valor):
+        """2026-09-27 -> 27/09/2026 (formato de fecha de toda la interfaz)."""
+        return fechas.a_texto(valor)
+
+    app.jinja_env.globals["tipos_equipo"] = tipos.nombres
+    app.jinja_env.globals["categorias_trabajo"] = categorias_trabajo.nombres
 
     @app.template_filter("fecha_hora")
     def fecha_hora(valor):
@@ -120,7 +125,7 @@ def _registrar_context_processor(app):
             for carpeta in (os.path.join(estaticos, "css"), os.path.join(estaticos, "js"))
             for archivo in os.listdir(carpeta)
         )
-        datos = {"asset_v": version, "service_cfg": get_config()}
+        datos = {"asset_v": version, "service_cfg": get_config(), "COMPLEJIDADES": models.COMPLEJIDADES}
         if current_user.is_authenticated:
             datos["ultimo_boleto"] = counters.get_last_number("boleto")
             datos["ultimo_recibo"] = counters.get_last_number("recibo")

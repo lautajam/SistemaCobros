@@ -163,6 +163,7 @@
     <div class="seccion">
         <div class="titulo-seccion">Trabajo realizado</div>
         <div class="caja">
+            <div class="fila"><div class="campo"><span class="etiqueta">Tipo de equipo:</span>{{ recibo.equipo | blanco(20) }}</div></div>
             <div class="fila"><div class="campo"><span class="etiqueta">Resumen:</span>{{ recibo.trabajo | blanco(50) }}</div></div>
             <div class="fila"><div class="campo texto-largo"><span class="etiqueta">Descripción detallada:</span><br>{{ recibo.descripcion | blanco(90) }}</div></div>
         </div>

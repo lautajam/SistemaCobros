@@ -77,6 +77,57 @@
         });
     });
 
+    // ---------- Fechas dd/mm/aaaa (con calendario opcional) ----------
+    document.querySelectorAll("[data-fecha-wrap]").forEach(function (envoltorio) {
+        var texto = envoltorio.querySelector("[data-fecha]");
+        var nativa = envoltorio.querySelector("[data-fecha-nativa]");
+        var boton = envoltorio.querySelector("[data-abrir-calendario]");
+
+        function formatear(valor) {
+            var d = valor.replace(/\D/g, "").slice(0, 8);
+            if (d.length > 4) { return d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4); }
+            if (d.length > 2) { return d.slice(0, 2) + "/" + d.slice(2); }
+            return d;
+        }
+        function esValida(valor) {
+            var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(valor);
+            if (!m) { return false; }
+            var dia = +m[1], mes = +m[2], anio = +m[3];
+            var f = new Date(anio, mes - 1, dia);
+            return anio >= 1900 && f.getFullYear() === anio && f.getMonth() === mes - 1 && f.getDate() === dia;
+        }
+        function validar() {
+            var v = texto.value.trim();
+            texto.setCustomValidity(v === "" || esValida(v) ? "" : "Escribí una fecha válida: dd/mm/aaaa");
+        }
+
+        texto.addEventListener("input", function (e) {
+            // Al borrar no se reformatea, para no trabarse con las barras.
+            if (!(e.inputType && e.inputType.indexOf("delete") === 0)) { texto.value = formatear(texto.value); }
+            validar();
+        });
+        texto.addEventListener("blur", validar);
+        validar();
+
+        boton.addEventListener("click", function () {
+            var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto.value);
+            nativa.value = m ? m[3] + "-" + m[2] + "-" + m[1] : "";
+            if (typeof nativa.showPicker === "function") {
+                try { nativa.showPicker(); } catch (e) { nativa.focus(); }
+            } else {
+                nativa.focus();
+            }
+        });
+        nativa.addEventListener("change", function () {
+            var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(nativa.value);
+            if (m) {
+                texto.value = m[3] + "/" + m[2] + "/" + m[1];
+                validar();
+                texto.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+    });
+
     // ---------- Avisos ----------
     document.querySelectorAll("[data-toast]").forEach(function (toast) {
         var cerrar = function () { toast.remove(); };

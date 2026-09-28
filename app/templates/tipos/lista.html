@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf %}
+{% block titulo %}Tipos de equipo{% endblock %}
+{% block contenido %}
+<div class="page-head">
+    <div class="titulo">
+        <h1>Tipos de equipo</h1>
+        <p class="sub">Son las opciones del desplegable «Tipo de equipo» al crear boletos y recibos. Deshabilitar o eliminar un tipo no cambia los documentos ya emitidos.</p>
+    </div>
+</div>
+
+<form class="card card-pad" method="post" style="margin-bottom:20px" data-lock>
+    {{ csrf() }}
+    <div class="card-head"><h2>{{ icon("plus") }} Agregar tipo</h2></div>
+    {% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:14px">{{ icon("alert") }} <span>{{ error }}</span></div>{% endif %}
+    <div class="fila-agregar">
+        <div class="field">
+            <label for="f-nombre" class="sr-only">Nombre del tipo</label>
+            <input id="f-nombre" type="text" name="nombre" value="{{ nombre_nuevo }}" placeholder="Nombre (ej: Notebook)" maxlength="60" required autocomplete="off">
+        </div>
+        <button class="btn" type="submit">{{ icon("check") }} Agregar</button>
+    </div>
+</form>
+
+{% if tipos %}
+<div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>Tipo</th><th>Estado</th><th>En uso</th><th></th></tr></thead>
+        <tbody>
+            {% for t in tipos %}
+            <tr>
+                <td class="nombre principal" data-label="Tipo">{{ t.nombre }}</td>
+                <td data-label="Estado">{% if t.activo %}<span class="badge badge-verde">Habilitado</span>{% else %}<span class="badge badge-gris">Deshabilitado</span>{% endif %}</td>
+                <td data-label="En uso">
+                    {% if t.boletos or t.recibos %}{{ t.boletos }} boleto(s) · {{ t.recibos }} recibo(s){% else %}<span class="muted">Sin uso</span>{% endif %}
+                </td>
+                <td class="acciones">
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('tipos.editar', tipo_id=t.id) }}">{{ icon("edit") }} Cambiar nombre</a>
+                    <form method="post" action="{{ url_for('tipos.estado', tipo_id=t.id) }}" style="display:contents">
+                        {{ csrf() }}
+                        <button type="submit" class="btn btn-secondary btn-sm">{{ "Deshabilitar" if t.activo else "Habilitar" }}</button>
+                    </form>
+                    <form method="post" action="{{ url_for('tipos.eliminar', tipo_id=t.id) }}" style="display:contents"
+                          data-confirm="Se elimina el tipo «{{ t.nombre }}» de la lista. Los boletos y recibos ya emitidos siguen mostrando ese nombre. Si solo querés dejar de usarlo, mejor deshabilitalo."
+                          data-confirm-titulo="¿Eliminar tipo de equipo?" data-confirm-boton="Eliminar">
+                        {{ csrf() }}
+                        <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger)" aria-label="Eliminar {{ t.nombre }}">{{ icon("trash") }}</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card empty">{{ icon("tool") }}<p>Todavía no hay tipos de equipo. Agregá el primero arriba.</p></div>
+{% endif %}
+{% endblock %}

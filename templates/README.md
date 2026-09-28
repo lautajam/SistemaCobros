@@ -98,7 +98,8 @@ En los documentos en blanco, todos estos campos llegan vacíos.
 {{ recibo.id }}
 {{ recibo.numero }}
 {{ recibo.boleto_id }}       -> vacío si el recibo no está asociado a ningún boleto
-{{ recibo.fecha }}
+{{ recibo.fecha }}           -> dd/mm/aaaa
+{{ recibo.equipo }}          -> tipo de equipo (de la lista que administra el admin)
 {{ recibo.trabajo }}
 {{ recibo.descripcion }}
 {{ recibo.importe }}

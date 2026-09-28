@@ -34,6 +34,7 @@
                 <li><a class="nav-link" href="{{ url_for('main.index') }}" {% if ep.startswith('main.') %}aria-current="page"{% endif %}>{{ icon("home") }} Inicio</a></li>
                 <li><a class="nav-link" href="{{ url_for('clientes.lista') }}" {% if ep.startswith('clientes.') %}aria-current="page"{% endif %}>{{ icon("users") }} Clientes</a></li>
                 <li><a class="nav-link" href="{{ url_for('historial.index') }}" {% if ep.startswith('historial.') or ep.startswith('boletos.') or ep.startswith('recibos.') %}aria-current="page"{% endif %}>{{ icon("clock") }} Historial</a></li>
+                <li><a class="nav-link" href="{{ url_for('tarifario.lista') }}" {% if ep.startswith('tarifario.') %}aria-current="page"{% endif %}>{{ icon("dollar") }} Tarifario</a></li>
             </ul>
             <div class="nav-acciones">
                 <a class="btn btn-primary btn-sm" href="{{ url_for('boletos.nuevo') }}">{{ icon("plus") }} Boleto</a>
@@ -42,8 +43,8 @@
 
             <div class="menu-usuario" data-menu-usuario>
                 <button type="button" class="usuario-toggle" data-usuario-toggle aria-expanded="false" aria-haspopup="true">
-                    <span class="avatar-mini">{{ current_user.nombre_visible[:1]|upper }}</span>
-                    <span class="usuario-nombre">{{ current_user.nombre_visible }}</span>
+                    <span class="avatar-mini">{{ current_user.usuario[:1]|upper }}</span>
+                    <span class="usuario-nombre">{{ current_user.usuario }}</span>
                     {{ icon("chevron-down") }}
                 </button>
                 <div class="menu-panel" data-usuario-panel>
@@ -53,6 +54,8 @@
                     </div>
                     <a class="nav-link" href="{{ url_for('cuenta.index') }}" {% if ep.startswith('cuenta.') %}aria-current="page"{% endif %}>{{ icon("user") }} Mi cuenta</a>
                     {% if puede('usuarios:gestionar') %}<a class="nav-link" href="{{ url_for('usuarios.lista') }}" {% if ep.startswith('usuarios.') %}aria-current="page"{% endif %}>{{ icon("shield") }} Usuarios</a>{% endif %}
+                    {% if puede('tipos:gestionar') %}<a class="nav-link" href="{{ url_for('tipos.lista') }}" {% if ep.startswith('tipos.') %}aria-current="page"{% endif %}>{{ icon("tool") }} Tipos de equipo</a>{% endif %}
+                    {% if puede('auditoria:ver') %}<a class="nav-link" href="{{ url_for('auditoria.index') }}" {% if ep.startswith('auditoria.') %}aria-current="page"{% endif %}>{{ icon("shield") }} Auditoría</a>{% endif %}
                     {% if puede('backups:gestionar') %}<a class="nav-link" href="{{ url_for('backups.index') }}" {% if ep.startswith('backups.') %}aria-current="page"{% endif %}>{{ icon("database") }} Backups</a>{% endif %}
                     {% if puede('configuracion:gestionar') %}<a class="nav-link" href="{{ url_for('configuracion.form') }}" {% if ep.startswith('configuracion.') %}aria-current="page"{% endif %}>{{ icon("settings") }} Configuración</a>{% endif %}
                     <form method="post" action="{{ url_for('auth.logout') }}">

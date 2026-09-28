@@ -28,12 +28,19 @@
     <p class="mensaje-error" data-error role="alert" hidden style="margin-top:8px"></p>
 
     <div class="panel-nuevo-cliente" data-panel-nuevo hidden>
+        <p class="hint" style="margin-bottom:10px">Todos los datos son obligatorios, salvo las observaciones.</p>
         <div class="form-grid cols-2">
             <div class="field"><label for="nc-nombre">Nombre <span class="req" aria-hidden="true">*</span></label><input id="nc-nombre" type="text" data-nuevo-nombre autocomplete="off"></div>
-            <div class="field"><label for="nc-dni">DNI / CUIT</label><input id="nc-dni" type="text" data-nuevo-dni autocomplete="off"></div>
-            <div class="field"><label for="nc-tel">Teléfono</label><input id="nc-tel" type="tel" data-nuevo-telefono inputmode="tel" autocomplete="off"></div>
-            <div class="field"><label for="nc-email">Email</label><input id="nc-email" type="email" data-nuevo-email autocomplete="off"></div>
+            <div class="field"><label for="nc-dni">DNI / CUIT <span class="req" aria-hidden="true">*</span></label><input id="nc-dni" type="text" data-nuevo-dni autocomplete="off"></div>
+            <div class="field"><label for="nc-tel">Teléfono <span class="req" aria-hidden="true">*</span></label><input id="nc-tel" type="tel" data-nuevo-telefono inputmode="tel" autocomplete="off"></div>
+            <div class="field"><label for="nc-email">Email <span class="req" aria-hidden="true">*</span></label><input id="nc-email" type="email" data-nuevo-email autocomplete="off"></div>
         </div>
+        <div class="form-grid cols-3" style="margin-top:12px">
+            <div class="field"><label for="nc-dir">Dirección <span class="req" aria-hidden="true">*</span></label><input id="nc-dir" type="text" data-nuevo-direccion autocomplete="off"></div>
+            <div class="field"><label for="nc-loc">Localidad <span class="req" aria-hidden="true">*</span></label><input id="nc-loc" type="text" data-nuevo-localidad autocomplete="off"></div>
+            <div class="field"><label for="nc-cp">Código postal <span class="req" aria-hidden="true">*</span></label><input id="nc-cp" type="text" data-nuevo-codigo-postal autocomplete="off"></div>
+        </div>
+        <div class="field" style="margin-top:12px"><label for="nc-obs">Observaciones (opcional)</label><textarea id="nc-obs" rows="2" data-nuevo-observaciones></textarea></div>
         <p class="mensaje-error" data-error-nuevo role="alert" hidden style="margin-top:10px"></p>
         <div class="row" style="margin-top:12px">
             <button type="button" class="btn btn-success btn-sm" data-guardar-nuevo>Guardar cliente</button>

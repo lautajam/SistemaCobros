@@ -50,21 +50,29 @@ service-app/
 │   ├── models.py              # Tablas de la base + formato de IDs
 │   ├── auth.py                # Login, roles y permisos, sesiones, bloqueo de intentos, cabeceras de seguridad, comando reset-admin
 │   ├── repo.py                # Acceso a datos (get / listar / insertar / actualizar / eliminar)
+│   ├── fechas.py              # Fechas dd/mm/aaaa: leer, mostrar y validar
+│   ├── tipos.py               # Lista de tipos de equipo (validación del desplegable)
+│   ├── formularios.py         # Validación compartida de boletos y recibos (fecha y tipo de equipo)
+│   ├── categorias_trabajo.py  # Lista de categorías del tarifario (validación del desplegable)
+│   ├── auditoria.py           # Registro de ediciones/eliminaciones de boletos y recibos por un admin
 │   ├── counters.py            # Numeración correlativa independiente y persistente
 │   ├── backup.py              # Crear (para descarga) y restaurar backups
 │   ├── pdf_utils.py           # Motor Jinja2 + conversión HTML -> PDF, normalización de nombres
 │   ├── documentos.py          # Arma el contexto y guarda cada PDF en su carpeta
 │   ├── routes/                # Blueprints (uno por sección de la app)
 │   │   ├── main.py            # Pantalla de inicio
-│   │   ├── clientes.py        # CRUD de clientes + búsqueda/creación rápida (AJAX)
-│   │   ├── boletos.py         # Alta/edición/PDF de boletos
-│   │   ├── recibos.py         # Alta/edición/PDF de recibos (standalone o desde un boleto)
+│   │   ├── clientes.py        # CRUD de clientes + búsqueda/creación rápida con todos los datos (AJAX)
+│   │   ├── boletos.py         # Alta / PDF de boletos (edición y baja: solo admin, con auditoría)
+│   │   ├── recibos.py         # Alta / PDF de recibos, standalone o desde un boleto (edición y baja: solo admin)
+│   │   ├── auditoria.py       # Pantalla «Auditoría»: qué modificó o eliminó un admin (solo admin)
+│   │   ├── tarifario.py       # Tarifario: lista de precios (ver: todos; editar: solo admin)
 │   │   ├── historial.py       # Historial general con pestañas y filtros
 │   │   ├── configuracion.py   # Datos del service + logo
 │   │   ├── blancos.py         # Boletos/recibos en blanco
 │   │   ├── auth.py            # Ingresar / cerrar sesión
 │   │   ├── cuenta.py          # Mi cuenta: cambiar contraseña (todos) y datos (admin)
 │   │   ├── usuarios.py        # Administración de técnicos (solo admin)
+│   │   ├── tipos.py           # Tipos de equipo: alta, cambio de nombre, deshabilitar y baja (solo admin)
 │   │   └── backups.py         # Pantalla de backups: crear (descarga) y restaurar (subir un .zip)
 │   ├── templates/             # Plantillas HTML de la INTERFAZ (base.html, _macros.html, _sprite.html + una carpeta por sección)
 │   └── static/
@@ -87,12 +95,16 @@ service-app/
 ### Modelo de datos (tablas)
 
 - **clientes:** `id, nombre, dni_cuit, telefono, email, direccion, localidad, codigo_postal, observaciones`
-- **boletos:** `id, numero, cliente_id, fecha, hora, equipo, marca, modelo, numero_serie, especificaciones, accesorios, estado_fisico, problema, observaciones`
-- **recibos:** `id, numero, cliente_id, boleto_id, fecha, trabajo, descripcion, importe, forma_pago, observaciones`
+- **boletos:** `id, numero, cliente_id, fecha, hora, equipo, marca, modelo, numero_serie, especificaciones, accesorios, estado_fisico, problema, observaciones, pdf_archivo`
+- **recibos:** `id, numero, cliente_id, boleto_id, fecha, equipo, trabajo, descripcion, importe, forma_pago, observaciones, pdf_archivo`
 - **equipos** (auxiliar): `id, cliente_id, tipo, marca, modelo, numero_serie` — se completa solo si el boleto trae N.º de serie, como base para consultar en el futuro el historial de un mismo equipo.
 - **configuracion:** una sola fila con los datos del service y el **logo** (guardado en la propia base, así viaja dentro de los backups).
 - **contadores:** `tipo, ultimo_numero` con tres filas (`cliente`, `boleto`, `recibo`).
-- **usuarios:** `id, usuario, nombre, rol (admin | tecnico), password_hash, activo, debe_cambiar_password, creado, ultimo_ingreso`.
+- **usuarios:** `id, usuario, nombre, rol (admin | tecnico), password_hash, activo, debe_cambiar_password, creado, ultimo_ingreso`. El usuario y el nombre no se pueden repetir (sin distinguir mayúsculas).
+- **tipos_equipo:** `id, nombre, activo` (solo el nombre y si está habilitado). Es la lista del desplegable «Tipo de equipo» de boletos y recibos.
+- **auditoria_documentos:** `id, documento (boleto | recibo), documento_id, numero, accion (editado | eliminado), usuario_id, usuario_texto, momento, cambios (JSON: campo, valor anterior, valor nuevo)`. Sin clave foránea al documento: la constancia sobrevive aunque se lo elimine.
+- **categorias_trabajo:** `id, nombre`. Es la lista del desplegable «Categoría» del tarifario.
+- **trabajos:** `id, nombre, categoria, descripcion, precio, precio_desde, complejidad (basico | complejo | avanzado)`. No es un documento emitido: se edita y elimina libremente.
 - **sesiones** (sesiones abiertas), **intentos_login** (intentos fallidos) y **ajustes** (claves internas): tablas de seguridad; sus datos no van en los backups.
 - `boletos` y `recibos` tienen además `creado_por_id` (el usuario que los creó).
 
@@ -114,12 +126,13 @@ Son **independientes del código**: se pueden editar con cualquier editor de tex
 1. Se arma un diccionario de contexto (`service`, `cliente`, `boleto`/`recibo`).
 2. Se renderiza la plantilla HTML con Jinja2 (el logo se incrusta como imagen dentro del HTML).
 3. `wkhtmltopdf` la convierte a PDF (A4, márgenes de impresión).
-4. Se guarda en `documentos/boletos`, `documentos/recibos` o `documentos/blancos/...` con el nombre obligatorio:
+4. Se guarda (una sola vez, al crear el documento) en `documentos/boletos`, `documentos/recibos` o `documentos/blancos/...` con el nombre obligatorio:
    - `boleto_recepcion_DD-MM-YYYY_Nombre_Cliente_NNNN.pdf`
    - `recibo_DD-MM-YYYY_Nombre_Cliente_NNNN.pdf`
 
    El nombre del cliente se normaliza (sin tildes, espacios ni caracteres especiales) solo para el nombre de archivo.
-5. Los documentos en blanco usan un nombre fijo (`boleto_recepcion_en_blanco.pdf` / `recibo_en_blanco.pdf`) con sufijo (`_1`, `_2`, ...) si ya existe. No consumen numeración.
+5. **El PDF emitido no se vuelve a generar**: al abrirlo se entrega el archivo tal cual salió (su nombre queda guardado en `pdf_archivo`), así que editar después el nombre o teléfono del cliente no cambia un boleto o recibo ya entregado. Solo se regenera cuando un administrador edita ese documento.
+6. Los documentos en blanco usan un nombre fijo (`boleto_recepcion_en_blanco.pdf` / `recibo_en_blanco.pdf`) con sufijo (`_1`, `_2`, ...) si ya existe. No consumen numeración.
 
 ### Interfaz (front-end)
 
@@ -127,6 +140,7 @@ Hecha con **CSS propio**, sin frameworks, sin compilar y sin internet. Se adapta
 
 - **Responsive:** en el celular el menú es una hamburguesa y las tablas se convierten en tarjetas; desde 900 px de ancho aparece la barra de navegación completa. En los formularios del celular, la barra de "Guardar" queda fija abajo.
 - **Modo oscuro automático:** sigue la configuración del sistema (`prefers-color-scheme`). Todos los colores están definidos como variables al inicio de `static/css/style.css` (para cambiar la paleta, se editan ahí).
+- **Fechas:** se escriben y se ven siempre como **dd/mm/aaaa** (formularios, listas, detalles y PDF), sin depender del idioma del navegador. El campo acepta solo dígitos y pone las barras solo, valida que el día exista (31/02 no) y tiene un botón de calendario. En la base se guardan como fecha real.
 - **Íconos:** SVG incluidos en `templates/_sprite.html`; se usan con `{{ icon("nombre") }}` (macro de `templates/_macros.html`, que también trae `campo`, `area`, `dato` y `archivo` para armar formularios y fichas).
 - **Confirmaciones:** los formularios con `data-confirm="mensaje"` (eliminar, restaurar backup) abren un cuadro propio `<dialog>`. No se usan `confirm()`, `prompt()` ni `alert()`: algunos navegadores embebidos (como el integrado de VS Code) no los soportan.
 - **Avisos:** los mensajes de Flask (`flash(mensaje, "success" | "error" | "warning")`) se muestran como avisos que se cierran solos.
@@ -140,7 +154,7 @@ Inicio
  ├─ Nuevo boleto -> elegir/crear cliente -> completar equipo -> Guardar -> PDF
  ├─ Nuevo recibo -> elegir/crear cliente -> completar trabajo -> Guardar -> PDF
  ├─ Clientes -> lista/búsqueda -> ficha de cliente -> historial (boletos + recibos)
- ├─ Historial -> pestañas Boletos/Recibos -> buscar/filtrar -> ver/editar/PDF/eliminar
+ ├─ Historial -> pestañas Boletos/Recibos -> buscar/filtrar -> ver / PDF (admin: también editar / eliminar)
  ├─ Boleto en blanco / Recibo en blanco -> descarga directa de PDF
  ├─ Backups -> crear (se descarga donde elijas) / subir y restaurar
  └─ Configuración -> datos del service + logo
@@ -215,24 +229,61 @@ No hay pantalla de registro: **nadie puede crear un usuario sin ser administrado
 |---|:---:|:---:|
 | Clientes: ver / crear | ✅ | ✅ |
 | Clientes: editar / eliminar | ✅ | ❌ |
-| Boletos y recibos: ver / crear / editar / PDF | ✅ | ✅ |
-| Boletos y recibos: eliminar | ✅ | ❌ |
+| Boletos y recibos: ver / crear / PDF | ✅ | ✅ |
+| Boletos y recibos: **editar y eliminar** (siempre queda registrado) | ✅ | ❌ |
+| Auditoría (quién modificó o eliminó qué) | ✅ | ❌ |
+| Tarifario: ver y descargar el PDF | ✅ | ✅ |
+| Tarifario: agregar/editar/eliminar trabajos y categorías | ✅ | ❌ |
 | Historial y formularios en blanco | ✅ | ✅ |
 | Usuarios (crear, editar, desactivar y eliminar técnicos) | ✅ | ❌ |
 | Cambiar la contraseña de otros usuarios | ✅ | ❌ |
 | Cambiar la propia contraseña | ✅ | ✅ |
 | Cambiar el propio nombre y usuario | ✅ | ❌ |
+| Tipos de equipo (crear, cambiar nombre, deshabilitar, eliminar) | ✅ | ❌ (solo elige de la lista) |
 | Configuración del service y Backups | ✅ | ❌ |
 
 Los permisos se controlan **en el servidor** (un técnico que escriba a mano la dirección de una pantalla de admin recibe "Sin permiso"); los botones se ocultan solo por comodidad. Cada boleto y recibo guarda quién lo creó ("Creado por").
 
 ### Administración de usuarios
 
-- **Usuarios → Nuevo técnico**: nombre, usuario y contraseña inicial (con la opción de obligarlo a cambiarla en su primer ingreso).
+- **Usuarios → Nuevo técnico**: nombre, usuario y contraseña inicial. **Siempre** se le obliga a cambiarla en su primer ingreso (no hay opción para evitarlo).
 - **Contraseña** (de cualquier usuario): el admin define una nueva; se cierran las sesiones abiertas de esa persona.
 - **Desactivar**: el técnico no puede ingresar, pero se conserva su historial. **Eliminar** solo se permite si no tiene boletos ni recibos a su nombre.
 - No se puede eliminar ni desactivar a un administrador desde la pantalla, así que siempre queda al menos uno. Los administradores adicionales se crean solo por comando (abajo).
 - Un cliente solo se puede eliminar si no tiene boletos ni recibos.
+- **En un cliente todos los datos son obligatorios, tanto al crearlo como al modificarlo** (nombre, DNI/CUIT, teléfono, email, dirección, localidad y código postal). La única excepción son las **observaciones**, que son opcionales en todos los casos del proyecto (boletos, recibos y clientes) y se rotulan «Observaciones (opcional)». Se valida desde Clientes → Nuevo/Editar y desde el botón «Cliente nuevo» de boletos y recibos, tanto en el navegador como en el servidor (espacios en blanco no cuentan; el email tiene que ser válido).
+- **No puede haber dos usuarios con el mismo usuario ni con el mismo nombre** (se compara sin distinguir mayúsculas ni espacios de más); lo controla la app y también la base de datos.
+- Arriba a la derecha se ve el **usuario** de quien inició sesión; el nombre completo aparece al abrir su menú.
+
+### Boletos y recibos emitidos: no se tocan
+
+Un boleto o recibo, una vez generado, **no lo puede modificar un técnico**: solo puede verlo e imprimir su PDF. Solo el administrador puede editarlo o eliminarlo, y cada vez la app deja constancia:
+
+- Se guarda en la base (`auditoria_documentos`) **quién** lo hizo (usuario y nombre), **cuándo** y **qué cambió** (valor anterior → valor nuevo, solo de los campos que realmente cambiaron; si se guarda sin cambiar nada no se registra nada).
+- Se **muestra en la pantalla** del boleto o recibo («Editado por … el …», visible para todos los que ven el documento; el **detalle de qué cambió** —cuadro «Modificaciones»— lo ve solo el admin) y con una marca «Editado» en el Historial.
+- **No aparece en el PDF**: el documento impreso no dice nada de la edición.
+- Editar y registrar el cambio ocurren en una sola transacción: no puede quedar un cambio sin su registro.
+- Si el admin **elimina** un boleto o recibo, queda una constancia con una copia de sus datos. Todo se ve en **menú del usuario → Auditoría**.
+- Los números no se reutilizan nunca, ni siquiera de un documento eliminado.
+
+### Tipos de equipo
+
+Solo el administrador maneja la lista (**menú del usuario → Tipos de equipo**): agregar, cambiar el nombre, deshabilitar/habilitar y eliminar. Cada tipo tiene solo un nombre. En boletos **y recibos** el «Tipo de equipo» es un desplegable con esa lista; **no se puede escribir un tipo libre** (el servidor también lo rechaza). Al crear un recibo desde un boleto, el tipo viene preseleccionado, y sale en el PDF del recibo.
+
+- Cada boleto y recibo guarda el nombre del tipo **escrito en su propio registro**, por eso tocar la lista **no modifica los documentos ya emitidos**.
+- **Deshabilitar** (recomendado cuando la empresa deja de trabajar con algo, p. ej. celulares): el tipo deja de aparecer al crear boletos y recibos nuevos, pero sigue en la lista y se puede volver a **habilitar**. Los documentos viejos lo conservan.
+- **Eliminar** lo quita de la lista definitivamente, aunque esté en uso: los documentos emitidos siguen mostrando ese nombre (la pantalla avisa antes de confirmar).
+- **Cambiar el nombre** afecta solo a los documentos nuevos; los ya emitidos siguen con el nombre que tenían.
+- Al editar (admin) un documento viejo cuyo tipo ya no está habilitado, ese valor se conserva.
+- La lista inicial (PC, Notebook, All in one, Impresora, Monitor, Celular, Tablet, Consola, Otro) se puede modificar libremente.
+
+### Tarifario
+
+Lista de precios del service (**menú principal → Tarifario**, visible para admin y técnico). Cada trabajo tiene nombre, categoría, una breve descripción, un precio (fijo o marcado como «Desde $X» para presupuestos variables) y una complejidad (Básico / Complejo / Avanzado, mostrada como color). Se puede filtrar por texto, categoría o complejidad, y descargarse en PDF con el mismo estilo de encabezado que boletos y recibos, agrupado por categoría.
+
+- Solo el **administrador** agrega, edita o elimina trabajos y categorías (**Tarifario → Categorías**). El técnico solo ve y descarga.
+- Un trabajo **no es un documento emitido** (ningún boleto ni recibo lo referencia), así que se edita y elimina libremente, sin auditoría: el PDF siempre muestra los precios vigentes y se regenera en cada descarga.
+- Las categorías sí cascadean al renombrarlas (los trabajos que las usan pasan a llamarse igual) y se pueden eliminar aunque estén en uso; el trabajo conserva el nombre que tenía.
 
 ### Cómo se protege
 
@@ -241,7 +292,7 @@ Los permisos se controlan **en el servidor** (un técnico que escriba a mano la 
 - **Bloqueo:** 5 intentos fallidos por usuario (o 30 por dirección IP) en 5 minutos bloquean el ingreso temporalmente. Se aplica igual a usuarios que no existen (no se puede averiguar qué usuarios hay) y se guarda en la base.
 - **CSRF:** todos los formularios y llamadas de escritura llevan un token.
 - **Cabeceras:** política de seguridad de contenido (sin scripts en línea), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, y HSTS cuando hay HTTPS. Las páginas con datos no se guardan en la caché del navegador.
-- **Redirecciones:** el parámetro `next` del login solo acepta rutas internas.
+- **Ingreso:** al iniciar sesión siempre se va al Inicio (no se vuelve a la última pantalla visitada); no existe redirección por parámetro, así que no hay redirecciones abiertas.
 
 ### Recuperar el acceso
 

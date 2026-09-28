@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf %}
+{% block titulo %}Categorías del tarifario{% endblock %}
+{% block contenido %}
+<a class="back-link" href="{{ url_for('tarifario.lista') }}">{{ icon("arrow-left") }} Tarifario</a>
+<div class="page-head">
+    <div class="titulo">
+        <h1>Categorías del tarifario</h1>
+        <p class="sub">Son las opciones del desplegable «Categoría» al cargar un trabajo. Renombrar una categoría actualiza los trabajos que la usan; eliminarla no los borra, solo deja de ofrecerse en la lista.</p>
+    </div>
+</div>
+
+<form class="card card-pad" method="post" style="margin-bottom:20px" data-lock>
+    {{ csrf() }}
+    <div class="card-head"><h2>{{ icon("plus") }} Agregar categoría</h2></div>
+    {% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:14px">{{ icon("alert") }} <span>{{ error }}</span></div>{% endif %}
+    <div class="fila-agregar">
+        <div class="field">
+            <label for="f-nombre" class="sr-only">Nombre de la categoría</label>
+            <input id="f-nombre" type="text" name="nombre" value="{{ nombre_nuevo }}" placeholder="Nombre (ej: Mantenimiento)" maxlength="60" required autocomplete="off">
+        </div>
+        <button class="btn" type="submit">{{ icon("check") }} Agregar</button>
+    </div>
+</form>
+
+{% if categorias %}
+<div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>Categoría</th><th>En uso</th><th></th></tr></thead>
+        <tbody>
+            {% for c in categorias %}
+            <tr>
+                <td class="nombre principal" data-label="Categoría">{{ c.nombre }}</td>
+                <td data-label="En uso">{% if c.en_uso %}{{ c.en_uso }} trabajo(s){% else %}<span class="muted">Sin uso</span>{% endif %}</td>
+                <td class="acciones">
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('tarifario.categoria_editar', categoria_id=c.id) }}">{{ icon("edit") }} Cambiar nombre</a>
+                    <form method="post" action="{{ url_for('tarifario.categoria_eliminar', categoria_id=c.id) }}" style="display:contents"
+                          data-confirm="Se elimina la categoría «{{ c.nombre }}» de la lista. Los trabajos que ya la usaban siguen mostrando ese nombre."
+                          data-confirm-titulo="¿Eliminar categoría?" data-confirm-boton="Eliminar">
+                        {{ csrf() }}
+                        <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger)" aria-label="Eliminar {{ c.nombre }}">{{ icon("trash") }}</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card empty">{{ icon("tool") }}<p>Todavía no hay categorías. Agregá la primera arriba.</p></div>
+{% endif %}
+{% endblock %}

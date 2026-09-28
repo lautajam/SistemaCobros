@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, campo %}
+{% block titulo %}Cambiar nombre de la categoría{% endblock %}
+{% block contenido %}
+<a class="back-link" href="{{ url_for('tarifario.categorias_lista') }}">{{ icon("arrow-left") }} Categorías del tarifario</a>
+<div class="page-head">
+    <div class="titulo">
+        <h1>Cambiar nombre</h1>
+        <p class="sub">Los trabajos que ya usan «{{ categoria.nombre }}» pasan a llamarse igual (no son documentos emitidos: siempre muestran los datos vigentes).</p>
+    </div>
+</div>
+
+{% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} <span>{{ error }}</span></div>{% endif %}
+
+<form class="card card-pad" method="post" data-lock>
+    {{ csrf() }}
+    <div class="stack" style="gap:14px">
+        {{ campo("Nombre de la categoría", "nombre", nombre, requerido=True, extra='maxlength="60" autocomplete="off"') }}
+    </div>
+    <div class="form-actions">
+        <button class="btn" type="submit">{{ icon("check") }} Guardar</button>
+        <a class="btn btn-secondary" href="{{ url_for('tarifario.categorias_lista') }}">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

@@ -3,6 +3,7 @@ from datetime import date
 from flask import Blueprint, render_template, request
 from sqlalchemy import Integer, String, cast, or_, select
 
+from .. import auditoria, fechas
 from ..auth import permiso
 from ..db import Session
 from ..models import Boleto, Cliente, Recibo
@@ -17,10 +18,9 @@ def _con_cliente(modelo, criterio_texto, q, fecha):
     if q:
         consulta = consulta.where(or_(*[c.icontains(q, autoescape=True) for c in criterio_texto(modelo)]))
     if fecha:
-        try:
-            consulta = consulta.where(modelo.fecha == date.fromisoformat(fecha))
-        except ValueError:
-            pass
+        dia = fechas.parsear(fecha)
+        if dia is not None:
+            consulta = consulta.where(modelo.fecha == dia)
     consulta = consulta.order_by(cast(modelo.numero, Integer).desc())
 
     registros = []
@@ -55,4 +55,5 @@ def index():
         tab = "boletos"
         registros = _con_cliente(Boleto, _campos_boleto, q, fecha)
 
-    return render_template("historial/index.html", tab=tab, registros=registros, q=q, fecha=fecha)
+    editados = auditoria.ids_editados("recibo" if tab == "recibos" else "boleto")
+    return render_template("historial/index.html", tab=tab, registros=registros, q=q, fecha=fecha, editados=editados)

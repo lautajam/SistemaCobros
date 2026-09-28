@@ -14,9 +14,9 @@ bp = Blueprint("auth", __name__)
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
-    destino = request.values.get("next", "")
+    # Siempre se entra por el Inicio (no se vuelve a la última pantalla visitada).
     if current_user.is_authenticated:
-        return redirect(destino if auth.es_destino_seguro(destino) else url_for("main.index"))
+        return redirect(url_for("main.index"))
 
     error = None
     estado = 200
@@ -40,12 +40,12 @@ def login():
                 auth.iniciar_sesion(usuario)
                 if usuario.debe_cambiar_password:
                     return redirect(url_for("cuenta.index"))
-                return redirect(destino if auth.es_destino_seguro(destino) else url_for("main.index"))
+                return redirect(url_for("main.index"))
             auth.registrar_fallo(usuario_txt, ip)
             error = "Usuario o contraseña incorrectos."
             estado = 401
 
-    return render_template("auth/login.html", error=error, usuario=usuario_txt, next=destino), estado
+    return render_template("auth/login.html", error=error, usuario=usuario_txt), estado
 
 
 @bp.route("/logout", methods=["POST"])

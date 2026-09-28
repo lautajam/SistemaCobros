@@ -13,10 +13,10 @@
 {%- endmacro %}
 
 {# Área de texto. Uso: {{ area("Observaciones", "observaciones", valor) }} #}
-{% macro area(etiqueta, nombre, valor="", placeholder="") -%}
+{% macro area(etiqueta, nombre, valor="", placeholder="", requerido=False) -%}
 <div class="field">
-    <label for="f-{{ nombre }}">{{ etiqueta }}</label>
-    <textarea id="f-{{ nombre }}" name="{{ nombre }}" {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}>{{ valor }}</textarea>
+    <label for="f-{{ nombre }}">{{ etiqueta }}{% if requerido %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+    <textarea id="f-{{ nombre }}" name="{{ nombre }}" {% if requerido %}required{% endif %} {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}>{{ valor }}</textarea>
 </div>
 {%- endmacro %}
 
@@ -40,4 +40,77 @@
 {# Token anti-CSRF: va dentro de TODO formulario que use method="post". #}
 {% macro csrf() -%}
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{# Fecha escrita como dd/mm/aaaa (con calendario opcional). `valor` puede venir como 2026-09-27 o 27/09/2026. #}
+{% macro fecha_input(nombre, valor="", id="") -%}
+<div class="input-fecha" data-fecha-wrap>
+    <input class="input" type="text" id="{{ id or ('f-' ~ nombre) }}" name="{{ nombre }}" value="{{ valor|fecha }}"
+           inputmode="numeric" placeholder="dd/mm/aaaa" maxlength="10" autocomplete="off" data-fecha>
+    <button type="button" class="btn-calendario" data-abrir-calendario aria-label="Abrir calendario">{{ icon("calendar") }}</button>
+    <input type="date" class="fecha-nativa" tabindex="-1" aria-hidden="true" data-fecha-nativa>
+</div>
+{%- endmacro %}
+
+{% macro campo_fecha(etiqueta, nombre, valor="") -%}
+<div class="field">
+    <label for="f-{{ nombre }}">{{ etiqueta }}</label>
+    {{ fecha_input(nombre, valor) }}
+</div>
+{%- endmacro %}
+
+{# Tipo de equipo: se ELIGE de la lista que administra el admin (no se puede escribir). #}
+{% macro tipo_equipo(valor="", etiqueta="Tipo de equipo") -%}
+{% set lista = tipos_equipo() %}
+<div class="field">
+    <label for="f-equipo">{{ etiqueta }}</label>
+    <select id="f-equipo" name="equipo">
+        <option value="">Elegí un tipo…</option>
+        {% for t in lista %}<option value="{{ t }}" {{ "selected" if t == valor }}>{{ t }}</option>{% endfor %}
+        {% if valor and valor not in lista %}<option value="{{ valor }}" selected>{{ valor }} (ya no está en la lista)</option>{% endif %}
+    </select>
+    {% if not lista %}<span class="hint">Todavía no hay tipos cargados: un administrador los agrega en «Tipos de equipo».</span>{% endif %}
+</div>
+{%- endmacro %}
+
+
+{# Aviso de edición + historial de cambios de un boleto/recibo (solo pantalla, nunca en el PDF). #}
+{% macro historial_cambios(historial) -%}
+{% if historial %}
+<section class="card card-pad historial-cambios" style="margin-top:24px" aria-labelledby="h-cambios">
+    <div class="card-head"><h2 id="h-cambios">{{ icon("shield") }} Modificaciones de un administrador <span class="badge badge-aviso">{{ historial|length }}</span></h2></div>
+    <ol class="cambios">
+        {% for h in historial %}
+        <li>
+            <p class="cambio-quien"><strong>{{ h.accion|capitalize }}</strong> por <strong>{{ h.usuario_texto or "usuario eliminado" }}</strong> el {{ h.momento|fecha_hora }}</p>
+            <ul>
+                {% for c in h.cambios %}
+                <li><span class="muted">{{ c.etiqueta }}:</span> <del>{{ c.antes }}</del> → <ins>{{ c.despues }}</ins></li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endfor %}
+    </ol>
+</section>
+{% endif %}
+{%- endmacro %}
+
+{# Categoría del tarifario: se ELIGE de la lista que administra el admin (no se puede escribir). #}
+{% macro categoria_trabajo(valor="") -%}
+{% set lista = categorias_trabajo() %}
+<div class="field">
+    <label for="f-categoria">Categoría</label>
+    <select id="f-categoria" name="categoria" required>
+        <option value="">Elegí una categoría…</option>
+        {% for c in lista %}<option value="{{ c }}" {{ "selected" if c == valor }}>{{ c }}</option>{% endfor %}
+        {% if valor and valor not in lista %}<option value="{{ valor }}" selected>{{ valor }} (ya no está en la lista)</option>{% endif %}
+    </select>
+    {% if not lista %}<span class="hint">Todavía no hay categorías cargadas: un administrador las agrega en «Tarifario → Categorías».</span>{% endif %}
+</div>
+{%- endmacro %}
+
+{# Badge de complejidad de un trabajo del tarifario. #}
+{% macro badge_complejidad(valor) -%}
+{% set clase = {"basico": "badge-verde", "complejo": "badge-aviso", "avanzado": "badge-rojo"}.get(valor, "badge-gris") %}
+<span class="badge {{ clase }}">{{ COMPLEJIDADES.get(valor, valor) }}</span>
 {%- endmacro %}

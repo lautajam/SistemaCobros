@@ -5,30 +5,33 @@
 <a class="back-link" href="{{ url_for('clientes.detalle', cliente_id=cliente.id) if cliente else url_for('clientes.lista') }}">{{ icon("arrow-left") }} Volver</a>
 <div class="page-head">
     <h1>{{ "Editar cliente" if cliente else "Nuevo cliente" }}</h1>
+    <p class="sub">Todos los datos son obligatorios, salvo las observaciones.</p>
 </div>
+
+{% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} <span>{{ error }}</span></div>{% endif %}
 
 <form class="card card-pad" method="post" data-lock>
     {{ csrf() }}
     <div class="form-section">
         <h2>{{ icon("user") }} Datos</h2>
         <div class="form-grid cols-2">
-            {{ campo("Nombre o razón social", "nombre", cliente.nombre if cliente else "", requerido=True, extra='autocomplete="name"') }}
-            {{ campo("DNI / CUIT", "dni_cuit", cliente.dni_cuit if cliente else "") }}
-            {{ campo("Teléfono", "telefono", cliente.telefono if cliente else "", tipo="tel", extra='autocomplete="tel" inputmode="tel"') }}
-            {{ campo("Email", "email", cliente.email if cliente else "", tipo="email", extra='autocomplete="email"') }}
+            {{ campo("Nombre o razón social", "nombre", valores.nombre, requerido=True, extra='autocomplete="name"') }}
+            {{ campo("DNI / CUIT", "dni_cuit", valores.dni_cuit, requerido=True) }}
+            {{ campo("Teléfono", "telefono", valores.telefono, tipo="tel", requerido=True, extra='autocomplete="tel" inputmode="tel"') }}
+            {{ campo("Email", "email", valores.email, tipo="email", requerido=True, extra='autocomplete="email"') }}
         </div>
     </div>
 
     <div class="form-section">
         <h2>{{ icon("home") }} Dirección</h2>
         <div class="form-grid cols-3">
-            {{ campo("Dirección", "direccion", cliente.direccion if cliente else "") }}
-            {{ campo("Localidad", "localidad", cliente.localidad if cliente else "") }}
-            {{ campo("Código postal", "codigo_postal", cliente.codigo_postal if cliente else "") }}
+            {{ campo("Dirección", "direccion", valores.direccion, requerido=True) }}
+            {{ campo("Localidad", "localidad", valores.localidad, requerido=True) }}
+            {{ campo("Código postal", "codigo_postal", valores.codigo_postal, requerido=True) }}
         </div>
     </div>
 
-    {{ area("Observaciones", "observaciones", cliente.observaciones if cliente else "") }}
+    {{ area("Observaciones (opcional)", "observaciones", valores.observaciones) }}
 
     <div class="form-actions">
         <button class="btn" type="submit">{{ icon("check") }} Guardar cliente</button>

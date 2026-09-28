@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tarifario</title>
+<style>
+    /* Editable libremente: ver comentario en templates/boleto.html */
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Helvetica', Arial, sans-serif;
+        font-size: 11.5px;
+        color: #1c1c1c;
+        margin: 0;
+        padding: 0;
+    }
+    .hoja { padding: 6mm 4mm; }
+    .encabezado {
+        display: table;
+        width: 100%;
+        border-bottom: 3px solid #2f55d4;
+        padding-bottom: 10px;
+        margin-bottom: 16px;
+    }
+    .encabezado .logo-col, .encabezado .datos-col, .encabezado .titulo-col {
+        display: table-cell;
+        vertical-align: middle;
+    }
+    .encabezado .logo-col { width: 70px; }
+    .encabezado .logo-col img { max-width: 65px; max-height: 65px; }
+    .encabezado .datos-col .nombre-service {
+        font-size: 17px;
+        font-weight: bold;
+        color: #2f55d4;
+    }
+    .encabezado .datos-col .linea-dato { font-size: 10.5px; color: #444; }
+    .encabezado .titulo-col { text-align: right; width: 190px; }
+    .encabezado .titulo-col .titulo {
+        font-size: 17px;
+        font-weight: bold;
+        color: #2f55d4;
+        letter-spacing: 0.5px;
+    }
+    .encabezado .titulo-col .fecha { font-size: 10.5px; color: #444; margin-top: 4px; }
+
+    .categoria { margin-bottom: 14px; }
+    .categoria .titulo-categoria {
+        background: #2f55d4;
+        color: #ffffff;
+        padding: 5px 8px;
+        font-size: 11.5px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-radius: 2px 2px 0 0;
+    }
+    table.trabajos { width: 100%; border-collapse: collapse; border: 1px solid #c9ccd3; border-top: none; }
+    table.trabajos th, table.trabajos td { padding: 6px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid #e4e6ea; font-size: 11px; }
+    table.trabajos th { background: #f2f4f8; font-size: 10px; text-transform: uppercase; color: #444; }
+    table.trabajos tr:last-child td { border-bottom: none; }
+    table.trabajos td.nombre { font-weight: bold; color: #1c1c1c; }
+    table.trabajos td.descripcion { color: #555; }
+    table.trabajos td.precio { text-align: right; white-space: nowrap; font-weight: bold; color: #2f55d4; }
+    .etiqueta-complejidad {
+        display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 9.5px; font-weight: bold;
+    }
+    .etiqueta-complejidad.basico { background: #e6f5ec; color: #137a3f; }
+    .etiqueta-complejidad.complejo { background: #fff3dc; color: #8a5300; }
+    .etiqueta-complejidad.avanzado { background: #fdeceb; color: #c62828; }
+
+    .sin-trabajos { text-align: center; color: #888; font-style: italic; padding: 20px 0; }
+
+    .pie {
+        margin-top: 18px;
+        font-size: 9px;
+        color: #888;
+        text-align: center;
+        border-top: 1px dashed #c9ccd3;
+        padding-top: 6px;
+    }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+    <div class="encabezado">
+        <div class="logo-col">
+            {% if service.logo_path %}
+            <img src="{{ service.logo_path }}" alt="Logo">
+            {% endif %}
+        </div>
+        <div class="datos-col">
+            <div class="nombre-service">{{ service.nombre }}</div>
+            {% if service.direccion or service.localidad %}
+            <div class="linea-dato">{{ service.direccion }}{% if service.localidad %}, {{ service.localidad }}{% endif %}</div>
+            {% endif %}
+            {% if service.telefono or service.email %}
+            <div class="linea-dato">{% if service.telefono %}Tel: {{ service.telefono }}{% endif %}{% if service.telefono and service.email %} · {% endif %}{% if service.email %}{{ service.email }}{% endif %}</div>
+            {% endif %}
+        </div>
+        <div class="titulo-col">
+            <div class="titulo">TARIFARIO</div>
+            <div class="fecha">Vigente al {{ hoy }}</div>
+        </div>
+    </div>
+
+    {% if grupos %}
+    {% for grupo in grupos %}
+    <div class="categoria">
+        <div class="titulo-categoria">{{ grupo.categoria }}</div>
+        <table class="trabajos">
+            <thead><tr><th style="width:22%">Trabajo</th><th style="width:40%">Descripción</th><th style="width:16%">Complejidad</th><th style="width:22%" class="precio">Precio</th></tr></thead>
+            <tbody>
+                {% for t in grupo.trabajos %}
+                <tr>
+                    <td class="nombre">{{ t.nombre }}</td>
+                    <td class="descripcion">{{ t.descripcion }}</td>
+                    <td><span class="etiqueta-complejidad {{ t.complejidad }}">{{ COMPLEJIDADES.get(t.complejidad, t.complejidad) }}</span></td>
+                    <td class="precio">{% if t.precio_desde %}Desde {% endif %}$ {{ t.precio|pesos }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="sin-trabajos">Todavía no hay trabajos cargados en el tarifario.</p>
+    {% endif %}
+
+    <div class="pie">
+        Los precios son de referencia y pueden variar según el diagnóstico de cada equipo — {{ service.nombre }}.
+        {% if service.telefono %} Consultas: {{ service.telefono }}{% endif %}
+    </div>
+
+</div>
+</body>
+</html>

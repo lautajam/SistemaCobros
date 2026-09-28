@@ -11,16 +11,12 @@ from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import Date, Numeric, select
 
+from . import fechas
 from .db import Session
 
 
 def _parse_fecha(valor):
-    if isinstance(valor, date):
-        return valor
-    try:
-        return date.fromisoformat((valor or "").strip())
-    except ValueError:
-        return None
+    return fechas.parsear(valor)
 
 
 def _parse_importe(valor):

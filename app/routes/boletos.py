@@ -4,7 +4,7 @@ from datetime import date
 from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user
 
-from .. import counters, documentos, models, repo
+from .. import auditoria, counters, documentos, fechas, formularios, models, repo
 from ..auth import permiso
 from ..db import Session
 from ..models import Boleto, Cliente, Equipo, Recibo, Usuario
@@ -59,15 +59,21 @@ def nuevo():
                 error="Debe seleccionar (o crear) un cliente antes de guardar.",
             ), 400
 
+        error, equipo = formularios.validar_fecha_y_equipo(request.form)
+        if error:
+            return render_template(
+                "boletos/form.html", boleto=None, fecha_hoy=date.today().isoformat(), error=error,
+            ), 400
+
         numero = models.format_boleto_numero(counters.next_number("boleto"))
         boleto = repo.insertar(Boleto, {
             "id": models.format_boleto_id(numero),
             "numero": numero,
             "cliente_id": cliente_id,
             "creado_por_id": current_user.id,
-            "fecha": request.form.get("fecha") or date.today().isoformat(),
+            "fecha": (fechas.parsear(request.form.get("fecha")) or date.today()).isoformat(),
             "hora": request.form.get("hora", ""),
-            "equipo": request.form.get("equipo", ""),
+            "equipo": equipo,
             "marca": request.form.get("marca", ""),
             "modelo": request.form.get("modelo", ""),
             "numero_serie": request.form.get("numero_serie", ""),
@@ -101,22 +107,43 @@ def detalle(boleto_id):
     cliente = _get_cliente(boleto["cliente_id"])
     recibos = repo.listar(Recibo, Recibo.boleto_id == boleto_id)
     creador = Session.get(Usuario, boleto["creado_por_id"]) if boleto.get("creado_por_id") else None
-    return render_template("boletos/detalle.html", boleto=boleto, cliente=cliente, recibos=recibos, creador=creador)
+    return render_template(
+        "boletos/detalle.html", boleto=boleto, cliente=cliente, recibos=recibos, creador=creador,
+        historial=auditoria.historial("boleto", boleto_id),
+    )
 
 
 @bp.route("/<boleto_id>/editar", methods=["GET", "POST"])
-@permiso("boletos:editar")
+@permiso("boletos:editar")  # solo administrador: un boleto emitido no lo toca nadie más
 def editar(boleto_id):
     boleto = repo.get(Boleto, boleto_id)
     if not boleto:
         return redirect(url_for("historial.index"))
+    cliente = _get_cliente(boleto["cliente_id"])
 
     if request.method == "POST":
-        cambios = {campo: request.form.get(campo, "") for campo in CAMPOS_EDITABLES}
-        repo.actualizar(Boleto, boleto_id, cambios)
+        error, equipo = formularios.validar_fecha_y_equipo(request.form, boleto.get("equipo", ""))
+        if error:
+            return render_template("boletos/form.html", boleto=boleto, cliente_prefill=cliente, error=error), 400
+        enviados = {campo: request.form.get(campo, "") for campo in CAMPOS_EDITABLES}
+        enviados["equipo"] = equipo
+        if not fechas.parsear(enviados["fecha"]):
+            del enviados["fecha"]  # vacía: se conserva la fecha original
+        cambios, a_guardar = auditoria.diferencias("boleto", boleto, enviados)
+        if not cambios:
+            flash("No cambiaste ningún dato: el boleto quedó igual.", "info")
+            return redirect(url_for("boletos.detalle", boleto_id=boleto_id))
+        auditoria.registrar("boleto", boleto, "editado", cambios)  # se confirma junto con el cambio
+        repo.actualizar(Boleto, boleto_id, a_guardar)
+        boleto = repo.get(Boleto, boleto_id)
+        try:
+            documentos.regenerar_pdf("boleto", boleto, cliente)
+        except RuntimeError as e:
+            flash(f"El cambio se guardó, pero no se pudo actualizar el PDF: {e}", "warning")
+        else:
+            flash("Boleto editado. El cambio quedó registrado a tu nombre.", "success")
         return redirect(url_for("boletos.detalle", boleto_id=boleto_id))
 
-    cliente = _get_cliente(boleto["cliente_id"])
     return render_template("boletos/form.html", boleto=boleto, cliente_prefill=cliente)
 
 
@@ -128,7 +155,7 @@ def pdf(boleto_id):
         return redirect(url_for("historial.index"))
     cliente = _get_cliente(boleto["cliente_id"])
     try:
-        ruta = documentos.generar_pdf_boleto(boleto, cliente)
+        ruta = documentos.pdf_emitido("boleto", boleto, cliente)
     except RuntimeError as e:
         flash(str(e), "error")
         return redirect(url_for("boletos.detalle", boleto_id=boleto_id))
@@ -138,7 +165,11 @@ def pdf(boleto_id):
 @bp.route("/<boleto_id>/eliminar", methods=["POST"])
 @permiso("boletos:eliminar")
 def eliminar(boleto_id):
-    repo.eliminar(Boleto, boleto_id)
+    boleto = repo.get(Boleto, boleto_id)
+    if boleto:
+        cliente = _get_cliente(boleto["cliente_id"]) or {}
+        auditoria.registrar("boleto", boleto, "eliminado", auditoria.instantanea("boleto", boleto, cliente.get("nombre", "")))
+        repo.eliminar(Boleto, boleto_id)
     return redirect(url_for("historial.index"))
 
 

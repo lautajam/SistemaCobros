@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, campo, area, csrf %}
+{% from "_macros.html" import icon, campo, area, csrf, campo_fecha, tipo_equipo %}
 {% block titulo %}{{ "Editar recibo" if recibo else "Nuevo recibo" }}{% endblock %}
 {% block contenido %}
 <a class="back-link" href="{{ url_for('recibos.detalle', recibo_id=recibo.id) if recibo else url_for('main.index') }}">{{ icon("arrow-left") }} Volver</a>
@@ -16,6 +16,7 @@
 </div>
 {% endif %}
 
+{% if recibo %}<div class="callout callout-info" style="margin-bottom:16px">{{ icon("shield") }} <span>Este documento ya fue emitido. Si lo modificás, el cambio queda registrado con tu usuario, la fecha y los valores anteriores, y se ve en su pantalla.</span></div>{% endif %}
 {% if error %}<div class="callout callout-error" role="alert" style="margin-bottom:16px">{{ icon("alert") }} {{ error }}</div>{% endif %}
 
 <form class="card card-pad" method="post" data-lock>
@@ -37,7 +38,7 @@
     <div class="form-section">
         <h2>{{ icon("dollar") }} Cobro</h2>
         <div class="form-grid cols-3">
-            {{ campo("Fecha", "fecha", recibo.fecha if recibo else fecha_hoy|default(""), tipo="date") }}
+            {{ campo_fecha("Fecha", "fecha", recibo.fecha if recibo else fecha_hoy|default("")) }}
             {{ campo("Importe ($)", "importe", recibo.importe if recibo else "", tipo="number", extra='step="0.01" min="0" inputmode="decimal"') }}
             <div class="field">
                 <label for="f-forma_pago">Forma de pago</label>
@@ -54,6 +55,7 @@
     <div class="form-section">
         <h2>{{ icon("tool") }} Trabajo realizado</h2>
         <div class="stack" style="gap:14px">
+            {{ tipo_equipo(recibo.equipo if recibo else (boleto.equipo if boleto else "")) }}
             {{ campo("Trabajo", "trabajo", recibo.trabajo if recibo else "", placeholder="Ej: Cambio de SSD") }}
         </div>
     </div>
@@ -62,7 +64,7 @@
         <summary>{{ icon("chevron-right") }} Más detalles (opcional)</summary>
         <div class="contenido-mas">
             {{ area("Descripción detallada", "descripcion", recibo.descripcion if recibo else "") }}
-            {{ area("Observaciones", "observaciones", recibo.observaciones if recibo else "") }}
+            {{ area("Observaciones (opcional)", "observaciones", recibo.observaciones if recibo else "") }}
         </div>
     </details>
 

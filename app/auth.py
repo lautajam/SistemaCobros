@@ -45,9 +45,9 @@ PERMISOS = {
     ROL_ADMIN: {"*"},
     ROL_TECNICO: {
         "clientes:ver", "clientes:crear",
-        "boletos:ver", "boletos:crear", "boletos:editar",
-        "recibos:ver", "recibos:crear", "recibos:editar",
-        "historial:ver", "blancos:ver",
+        "boletos:ver", "boletos:crear",
+        "recibos:ver", "recibos:crear",
+        "historial:ver", "blancos:ver", "tarifario:ver",
     },
 }
 
@@ -115,6 +115,27 @@ def validar_clave(clave, usuario=""):
 
 def normalizar_usuario(texto):
     return (texto or "").strip().lower()
+
+
+def normalizar_nombre(texto):
+    """Recorta y colapsa espacios repetidos ('Ana   Pérez ' -> 'Ana Pérez')."""
+    return " ".join((texto or "").split())
+
+
+def nombre_o_usuario_repetido(nombre, usuario, ignorar_id=None):
+    """Mensaje de error si ya hay otro usuario con ese nombre de usuario o con ese nombre
+    (sin distinguir mayúsculas), o None."""
+    def otro(condicion):
+        consulta = select(Usuario.id).where(condicion)
+        if ignorar_id is not None:
+            consulta = consulta.where(Usuario.id != ignorar_id)
+        return Session.scalar(consulta) is not None
+
+    if otro(Usuario.usuario == usuario):
+        return "Ya existe un usuario con ese nombre de usuario."
+    if otro(func.lower(Usuario.nombre) == nombre.lower()):
+        return "Ya existe un usuario con ese nombre."
+    return None
 
 
 def validar_usuario(usuario):
@@ -291,8 +312,7 @@ def _es_api():
 def _no_autenticado():
     if _es_api():
         return jsonify({"error": "Tenés que iniciar sesión."}), 401
-    destino = request.full_path if request.query_string else request.path
-    return redirect(url_for("auth.login", next=destino if es_destino_seguro(destino) else None))
+    return redirect(url_for("auth.login"))
 
 
 def init_app(app):

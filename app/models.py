@@ -13,8 +13,9 @@ from decimal import Decimal
 from flask_login import UserMixin
 from sqlalchemy import (
     Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text,
-    UniqueConstraint, func, text,
+    Index, UniqueConstraint, func, text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Columnas de cada documento, usadas para armar los documentos en blanco.
@@ -30,7 +31,7 @@ BOLETO_FIELDS = [
 ]
 
 RECIBO_FIELDS = [
-    "id", "numero", "cliente_id", "boleto_id", "fecha", "trabajo",
+    "id", "numero", "cliente_id", "boleto_id", "fecha", "equipo", "trabajo",
     "descripcion", "importe", "forma_pago", "observaciones",
 ]
 
@@ -94,6 +95,7 @@ class Boleto(Serializable, Base):
     estado_fisico: Mapped[str] = _texto()
     problema: Mapped[str] = _texto()
     observaciones: Mapped[str] = _texto()
+    pdf_archivo: Mapped[str] = _texto()
 
 
 class Recibo(Serializable, Base):
@@ -105,11 +107,13 @@ class Recibo(Serializable, Base):
     boleto_id: Mapped[str | None] = mapped_column(ForeignKey("boletos.id", ondelete="SET NULL"), index=True)
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"), index=True)
     fecha: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    equipo: Mapped[str] = _texto()
     trabajo: Mapped[str] = _texto()
     descripcion: Mapped[str] = _texto()
     importe: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     forma_pago: Mapped[str] = _texto()
     observaciones: Mapped[str] = _texto()
+    pdf_archivo: Mapped[str] = _texto()
 
 
 class Equipo(Serializable, Base):
@@ -161,7 +165,10 @@ class Usuario(UserMixin, Base):
     """Usuario del sistema. La contraseña se guarda solo como hash."""
 
     __tablename__ = "usuarios"
-    __table_args__ = (CheckConstraint("rol IN ('admin', 'tecnico')", name="ck_usuarios_rol"),)
+    __table_args__ = (
+        CheckConstraint("rol IN ('admin', 'tecnico')", name="ck_usuarios_rol"),
+        Index("uq_usuarios_nombre_lower", text("lower(nombre)"), unique=True),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     usuario: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
@@ -184,6 +191,77 @@ class Usuario(UserMixin, Base):
     @property
     def nombre_visible(self):
         return self.nombre or self.usuario
+
+
+class TipoEquipo(Base):
+    """Lista de tipos de equipo (PC, Notebook...) que administra el admin y de la que
+    se elige en boletos y recibos. Solo tiene nombre."""
+
+    __tablename__ = "tipos_equipo"
+    __table_args__ = (Index("uq_tipos_equipo_nombre_lower", text("lower(nombre)"), unique=True),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(60), nullable=False)
+    # Deshabilitado: ya no aparece en el desplegable, pero los documentos emitidos lo conservan.
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
+
+
+class AuditoriaDocumento(Base):
+    """Registro de lo que un administrador hizo sobre un boleto o recibo ya emitido
+    (editarlo o eliminarlo). No tiene clave foránea al documento: la constancia sobrevive
+    aunque se lo elimine. No se imprime en el PDF."""
+
+    __tablename__ = "auditoria_documentos"
+    __table_args__ = (
+        CheckConstraint("documento IN ('boleto', 'recibo')", name="ck_auditoria_documento"),
+        CheckConstraint("accion IN ('editado', 'eliminado')", name="ck_auditoria_accion"),
+        Index("ix_auditoria_documento", "documento", "documento_id"),
+        Index("ix_auditoria_momento", "momento"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    documento: Mapped[str] = mapped_column(String(10), nullable=False)
+    documento_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    numero: Mapped[str] = mapped_column(String(20), nullable=False, default="", server_default="")
+    accion: Mapped[str] = mapped_column(String(20), nullable=False)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    usuario_texto: Mapped[str] = _texto()
+    momento: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    cambios: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb"))
+
+
+class CategoriaTrabajo(Base):
+    """Lista de categorías del tarifario (Reparación, Mantenimiento, Instalación...) que
+    administra el admin. Solo tiene nombre. Un trabajo guarda la categoría como texto
+    propio: renombrar una categoría actualiza los trabajos que la usan (no son documentos
+    emitidos, siempre muestran el precio y los datos vigentes); eliminarla no borra los
+    trabajos, que conservan el nombre que tenían."""
+
+    __tablename__ = "categorias_trabajo"
+    __table_args__ = (Index("uq_categorias_trabajo_nombre_lower", text("lower(nombre)"), unique=True),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(60), nullable=False)
+
+
+COMPLEJIDADES = {"basico": "Básico", "complejo": "Complejo", "avanzado": "Avanzado"}
+
+
+class Trabajo(Serializable, Base):
+    """Un ítem del tarifario: un trabajo que ofrece el service, con su precio.
+    No es un documento emitido (no lo referencia ningún boleto ni recibo), así que
+    editarlo o eliminarlo es libre, sin auditoría ni inmutabilidad."""
+
+    __tablename__ = "trabajos"
+    __table_args__ = (CheckConstraint("complejidad IN ('basico', 'complejo', 'avanzado')", name="ck_trabajos_complejidad"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nombre: Mapped[str] = _texto()
+    categoria: Mapped[str] = _texto()
+    descripcion: Mapped[str] = _texto()
+    precio: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    precio_desde: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    complejidad: Mapped[str] = mapped_column(String(20), nullable=False, default="basico", server_default="basico")
 
 
 class SesionActiva(Base):

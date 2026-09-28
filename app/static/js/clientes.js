@@ -165,11 +165,26 @@
                 nombre: q("[data-nuevo-nombre]").value.trim(),
                 dni_cuit: q("[data-nuevo-dni]").value.trim(),
                 telefono: q("[data-nuevo-telefono]").value.trim(),
-                email: q("[data-nuevo-email]").value.trim()
+                email: q("[data-nuevo-email]").value.trim(),
+                direccion: q("[data-nuevo-direccion]").value.trim(),
+                localidad: q("[data-nuevo-localidad]").value.trim(),
+                codigo_postal: q("[data-nuevo-codigo-postal]").value.trim(),
+                observaciones: q("[data-nuevo-observaciones]").value.trim()
             };
-            if (!datos.nombre) {
-                mostrarError(errorNuevo, "El nombre es obligatorio.");
-                q("[data-nuevo-nombre]").focus();
+            var obligatorios = [
+                ["nombre", "nombre", "el nombre"], ["dni_cuit", "dni", "el DNI / CUIT"], ["telefono", "telefono", "el teléfono"],
+                ["email", "email", "el email"], ["direccion", "direccion", "la dirección"], ["localidad", "localidad", "la localidad"],
+                ["codigo_postal", "codigo-postal", "el código postal"]
+            ];
+            var faltan = obligatorios.filter(function (o) { return !datos[o[0]]; });
+            if (faltan.length) {
+                mostrarError(errorNuevo, "Falta completar: " + faltan.map(function (o) { return o[2]; }).join(", ") + ".");
+                q("[data-nuevo-" + faltan[0][1] + "]").focus();
+                return;
+            }
+            if (!q("[data-nuevo-email]").checkValidity()) {
+                mostrarError(errorNuevo, "El email no es válido.");
+                q("[data-nuevo-email]").focus();
                 return;
             }
             boton.disabled = true;
@@ -185,6 +200,7 @@
                         return;
                     }
                     mostrarError(errorNuevo, "");
+                    panel.querySelectorAll("input, textarea").forEach(function (campo) { campo.value = ""; });
                     elegir(res.cuerpo);
                 })
                 .catch(function () { mostrarError(errorNuevo, "No se pudo guardar el cliente. Reintentá."); })

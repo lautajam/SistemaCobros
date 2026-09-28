@@ -17,6 +17,8 @@ import unicodedata
 import jinja2
 import pdfkit
 
+from . import formatos
+
 # Rutas donde el instalador oficial de wkhtmltopdf suele dejar el ejecutable,
 # por si no quedó agregado al PATH del sistema (muy común en Windows).
 _RUTAS_COMUNES_WKHTMLTOPDF = [
@@ -121,6 +123,7 @@ def _get_env(template_dir: str) -> jinja2.Environment:
         autoescape=jinja2.select_autoescape(["html"]),
     )
     env.filters["blanco"] = _blanco_o_valor
+    env.filters["pesos"] = formatos.pesos
     return env
 
 

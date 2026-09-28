@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, badge_complejidad with context %}
+{% block titulo %}Tarifario{% endblock %}
+{% block contenido %}
+<div class="page-head">
+    <div class="titulo">
+        <h1>Tarifario</h1>
+        <p class="sub">Precios de referencia de los trabajos que ofrece el service.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn" href="{{ url_for('tarifario.pdf') }}" target="_blank" rel="noopener">{{ icon("printer") }} Descargar PDF</a>
+        {% if puede('tarifario:gestionar') %}
+        <a class="btn btn-secondary" href="{{ url_for('tarifario.categorias_lista') }}">{{ icon("tool") }} Categorías</a>
+        <a class="btn btn-success" href="{{ url_for('tarifario.nuevo') }}">{{ icon("plus") }} Nuevo trabajo</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="toolbar">
+    <form method="get" role="search">
+        <div class="input-icono">
+            {{ icon("search") }}
+            <input class="input" type="search" name="q" value="{{ q }}" placeholder="Nombre del trabajo" aria-label="Buscar trabajo">
+        </div>
+        <select class="input" name="categoria" aria-label="Filtrar por categoría">
+            <option value="">Todas las categorías</option>
+            {% for c in categorias %}<option value="{{ c }}" {{ "selected" if c == categoria }}>{{ c }}</option>{% endfor %}
+        </select>
+        <select class="input" name="complejidad" aria-label="Filtrar por complejidad">
+            <option value="">Cualquier complejidad</option>
+            {% for clave, etiqueta in complejidades.items() %}<option value="{{ clave }}" {{ "selected" if clave == complejidad }}>{{ etiqueta }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-secondary" type="submit">Filtrar</button>
+        {% if q or categoria or complejidad %}<a class="btn btn-ghost" href="{{ url_for('tarifario.lista') }}">Limpiar</a>{% endif %}
+    </form>
+</div>
+
+{% if grupos %}
+{% for grupo in grupos %}
+<div class="card-head"><h2>{{ grupo.categoria }} <span class="badge badge-gris">{{ grupo.trabajos|length }}</span></h2></div>
+<div class="table-wrap" style="margin-bottom:20px">
+    <table class="table">
+        <thead><tr><th>Trabajo</th><th>Descripción</th><th>Complejidad</th><th>Precio</th>{% if puede('tarifario:gestionar') %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+            {% for t in grupo.trabajos %}
+            <tr>
+                <td class="nombre principal" data-label="Trabajo">{{ t.nombre }}</td>
+                <td data-label="Descripción" class="texto-largo">{{ t.descripcion }}</td>
+                <td data-label="Complejidad">{{ badge_complejidad(t.complejidad) }}</td>
+                <td data-label="Precio"><strong>{% if t.precio_desde %}Desde {% endif %}$ {{ t.precio|pesos }}</strong></td>
+                {% if puede('tarifario:gestionar') %}
+                <td class="acciones">
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('tarifario.editar', trabajo_id=t.id) }}">{{ icon("edit") }} Editar</a>
+                    <form method="post" action="{{ url_for('tarifario.eliminar', trabajo_id=t.id) }}" style="display:contents"
+                          data-confirm="Se elimina «{{ t.nombre }}» del tarifario." data-confirm-titulo="¿Eliminar trabajo?" data-confirm-boton="Eliminar">
+                        {{ csrf() }}
+                        <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger)" aria-label="Eliminar {{ t.nombre }}">{{ icon("trash") }}</button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endfor %}
+{% else %}
+<div class="card empty">
+    {{ icon("inbox") }}
+    <p>
+        {% if q or categoria or complejidad %}No hay trabajos que coincidan con el filtro.
+        {% elif puede('tarifario:gestionar') %}Todavía no hay trabajos cargados. Agregá el primero arriba.
+        {% else %}Todavía no hay trabajos cargados en el tarifario.{% endif %}
+    </p>
+</div>
+{% endif %}
+{% endblock %}
