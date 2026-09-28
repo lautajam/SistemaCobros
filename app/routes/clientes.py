@@ -2,7 +2,7 @@ from flask import Blueprint, abort, flash, jsonify, redirect, render_template, r
 from flask_login import current_user
 from sqlalchemy import Integer, cast, delete, func, or_, select
 
-from .. import counters, models, repo
+from .. import auditoria, counters, models, repo
 from ..auth import permiso, tiene_permiso
 from ..db import Session
 from ..models import Boleto, Cliente, Equipo, Recibo
@@ -137,7 +137,11 @@ def editar(cliente_id):
         error = validar_cliente(request.form)
         if error:
             return render_template("clientes/form.html", cliente=cliente, valores=_campos_desde(request.form), error=error), 400
-        repo.actualizar(Cliente, cliente_id, _campos_desde(request.form))
+        cambios, a_guardar = auditoria.diferencias("cliente", cliente, _campos_desde(request.form))
+        if cambios:
+            # Se identifica por su nombre (no tiene "número" como un boleto o recibo).
+            auditoria.registrar("cliente", {**cliente, "numero": cliente["nombre"]}, "editado", cambios)
+        repo.actualizar(Cliente, cliente_id, a_guardar)
         return redirect(url_for("clientes.detalle", cliente_id=cliente_id))
     return render_template("clientes/form.html", cliente=cliente, valores=cliente)
 
@@ -145,15 +149,17 @@ def editar(cliente_id):
 @bp.route("/<cliente_id>/estado", methods=["POST"])
 @permiso("clientes:editar")
 def estado(cliente_id):
-    cliente = Session.get(Cliente, cliente_id)
+    cliente = repo.get(Cliente, cliente_id)
     if cliente is None:
         abort(404)
-    cliente.activo = not cliente.activo
-    Session.commit()
-    if cliente.activo:
-        flash(f"Cliente «{cliente.nombre}» habilitado: vuelve a aparecer en la búsqueda.", "success")
+    nuevo_valor = not cliente["activo"]
+    cambios, a_guardar = auditoria.diferencias("cliente", cliente, {"activo": nuevo_valor})
+    auditoria.registrar("cliente", {**cliente, "numero": cliente["nombre"]}, "editado", cambios)  # se confirma junto con el cambio
+    repo.actualizar(Cliente, cliente_id, a_guardar)
+    if nuevo_valor:
+        flash(f"Cliente «{cliente['nombre']}» habilitado: vuelve a aparecer en la búsqueda.", "success")
     else:
-        flash(f"Cliente «{cliente.nombre}» deshabilitado: ya no aparece en la búsqueda ni se le pueden generar documentos nuevos. Su historial no cambia.", "success")
+        flash(f"Cliente «{cliente['nombre']}» deshabilitado: ya no aparece en la búsqueda ni se le pueden generar documentos nuevos. Su historial no cambia.", "success")
     return redirect(url_for("clientes.detalle", cliente_id=cliente_id))
 
 
@@ -171,6 +177,9 @@ def eliminar(cliente_id):
             "Eliminá primero esos documentos.", "error",
         )
         return redirect(url_for("clientes.detalle", cliente_id=cliente_id))
+    auditoria.registrar(
+        "cliente", {**cliente, "numero": cliente["nombre"]}, "eliminado", auditoria.instantanea("cliente", cliente)
+    )
     Session.execute(delete(Equipo).where(Equipo.cliente_id == cliente_id))
     Session.delete(Session.get(Cliente, cliente_id))
     Session.commit()

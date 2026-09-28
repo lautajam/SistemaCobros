@@ -216,7 +216,7 @@ class AuditoriaDocumento(Base):
 
     __tablename__ = "auditoria_documentos"
     __table_args__ = (
-        CheckConstraint("documento IN ('boleto', 'recibo')", name="ck_auditoria_documento"),
+        CheckConstraint("documento IN ('boleto', 'recibo', 'cliente')", name="ck_auditoria_documento"),
         CheckConstraint("accion IN ('editado', 'eliminado')", name="ck_auditoria_accion"),
         Index("ix_auditoria_documento", "documento", "documento_id"),
         Index("ix_auditoria_momento", "momento"),

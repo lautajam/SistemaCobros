@@ -102,7 +102,7 @@ service-app/
 - **contadores:** `tipo, ultimo_numero` con tres filas (`cliente`, `boleto`, `recibo`).
 - **usuarios:** `id, usuario, nombre, rol (admin | tecnico), password_hash, activo, debe_cambiar_password, creado, ultimo_ingreso`. El usuario y el nombre no se pueden repetir (sin distinguir mayúsculas).
 - **tipos_equipo:** `id, nombre, activo` (solo el nombre y si está habilitado). Es la lista del desplegable «Tipo de equipo» de boletos y recibos.
-- **auditoria_documentos:** `id, documento (boleto | recibo), documento_id, numero, accion (editado | eliminado), usuario_id, usuario_texto, momento, cambios (JSON: campo, valor anterior, valor nuevo)`. Sin clave foránea al documento: la constancia sobrevive aunque se lo elimine.
+- **auditoria_documentos:** `id, documento (boleto | recibo | cliente), documento_id, numero, accion (editado | eliminado), usuario_id, usuario_texto, momento, cambios (JSON: campo, valor anterior, valor nuevo)`. Sin clave foránea al documento: la constancia sobrevive aunque se lo elimine. Para un cliente, `numero` guarda su nombre (no tiene número como un boleto o recibo).
 - **categorias_trabajo:** `id, nombre`. Es la lista del desplegable «Categoría» del tarifario.
 - **trabajos:** `id, nombre, categoria, descripcion, precio, precio_desde, complejidad (basico | complejo | avanzado)`. No es un documento emitido: se edita y elimina libremente.
 - **sesiones** (sesiones abiertas), **intentos_login** (intentos fallidos) y **ajustes** (claves internas): tablas de seguridad; sus datos no van en los backups.
@@ -231,7 +231,7 @@ No hay pantalla de registro: **nadie puede crear un usuario sin ser administrado
 | Clientes: editar / deshabilitar / eliminar | ✅ | ❌ |
 | Boletos y recibos: ver / crear / PDF | ✅ | ✅ |
 | Boletos y recibos: **editar y eliminar** (siempre queda registrado) | ✅ | ❌ |
-| Auditoría (quién modificó o eliminó qué) | ✅ | ❌ |
+| Auditoría (quién modificó o eliminó qué, con filtros) | ✅ | ❌ |
 | Tarifario: ver y descargar el PDF | ✅ | ✅ |
 | Tarifario: agregar/editar/eliminar trabajos y categorías | ✅ | ❌ |
 | Historial y formularios en blanco | ✅ | ✅ |
@@ -256,16 +256,18 @@ Los permisos se controlan **en el servidor** (un técnico que escriba a mano la 
 - **No puede haber dos usuarios con el mismo usuario ni con el mismo nombre** (se compara sin distinguir mayúsculas ni espacios de más); lo controla la app y también la base de datos.
 - Arriba a la derecha se ve el **usuario** de quien inició sesión; el nombre completo aparece al abrir su menú.
 
-### Boletos y recibos emitidos: no se tocan
+### Boletos, recibos y clientes: lo que cambia un admin queda registrado
 
-Un boleto o recibo, una vez generado, **no lo puede modificar un técnico**: solo puede verlo e imprimir su PDF. Solo el administrador puede editarlo o eliminarlo, y cada vez la app deja constancia:
+Un boleto o recibo, una vez generado, **no lo puede modificar un técnico**: solo puede verlo e imprimir su PDF. Solo el administrador puede editarlo o eliminarlo. Editar un **cliente** (datos, deshabilitar/habilitar, eliminar) también es cosa del admin, y aunque un cliente no es un documento «cerrado» como un boleto, cada cambio deja la misma constancia:
 
-- Se guarda en la base (`auditoria_documentos`) **quién** lo hizo (usuario y nombre), **cuándo** y **qué cambió** (valor anterior → valor nuevo, solo de los campos que realmente cambiaron; si se guarda sin cambiar nada no se registra nada).
-- Se **muestra en la pantalla** del boleto o recibo («Editado por … el …», visible para todos los que ven el documento; el **detalle de qué cambió** —cuadro «Modificaciones»— lo ve solo el admin) y con una marca «Editado» en el Historial.
-- **No aparece en el PDF**: el documento impreso no dice nada de la edición.
+- Se guarda en la base (`auditoria_documentos`) **quién** lo hizo (usuario y nombre), **cuándo** y **qué cambió** (valor anterior → valor nuevo, solo de los campos que realmente cambiaron; si se guarda sin cambiar nada no se registra nada). Deshabilitar/habilitar un cliente se registra como un cambio más («Estado: Habilitado → Deshabilitado»).
+- En boletos y recibos se **muestra en su propia pantalla** («Editado por … el …», visible para todos los que ven el documento; el **detalle de qué cambió** —cuadro «Modificaciones»— lo ve solo el admin) y con una marca «Editado» en el Historial. Un cliente no muestra ese aviso en su ficha (se edita seguido y no es un documento cerrado): su historial de cambios se consulta solo en Auditoría.
+- **No aparece en el PDF**: el boleto o recibo impreso no dice nada de la edición.
 - Editar y registrar el cambio ocurren en una sola transacción: no puede quedar un cambio sin su registro.
-- Si el admin **elimina** un boleto o recibo, queda una constancia con una copia de sus datos. Todo se ve en **menú del usuario → Auditoría**.
-- Los números no se reutilizan nunca, ni siquiera de un documento eliminado.
+- Si el admin **elimina** un boleto, recibo o cliente, queda una constancia con una copia de sus datos.
+- Los números de boleto/recibo no se reutilizan nunca, ni siquiera de un documento eliminado.
+
+**Auditoría** (menú del usuario, solo admin) lista todo esto y se puede filtrar por **tipo de documento** (clientes, boletos o recibos) y por **qué administrador** lo hizo (útil si hay más de uno).
 
 ### Tipos de equipo
 

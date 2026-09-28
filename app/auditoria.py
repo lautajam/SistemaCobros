@@ -23,7 +23,13 @@ ETIQUETAS = {
         "fecha": "Fecha", "equipo": "Tipo de equipo", "trabajo": "Trabajo", "descripcion": "Descripción",
         "importe": "Importe", "forma_pago": "Forma de pago", "observaciones": "Observaciones",
     },
+    "cliente": {
+        "nombre": "Nombre", "dni_cuit": "DNI / CUIT", "telefono": "Teléfono", "email": "Email",
+        "direccion": "Dirección", "localidad": "Localidad", "codigo_postal": "Código postal",
+        "observaciones": "Observaciones", "activo": "Estado",
+    },
 }
+DOCUMENTOS = {"boleto": "Boleto", "recibo": "Recibo", "cliente": "Cliente"}
 ACCIONES = {"editado": "Editado", "eliminado": "Eliminado"}
 
 
@@ -32,6 +38,8 @@ def _texto(campo, valor):
     if campo == "importe":
         numero = repo._parse_importe(valor)
         return "(vacío)" if numero is None else "$ " + formatos.pesos(numero)
+    if campo == "activo":
+        return "Habilitado" if valor else "Deshabilitado"
     if valor is None or str(valor).strip() == "":
         return "(vacío)"
     if campo == "fecha":
@@ -44,6 +52,8 @@ def _igual(campo, a, b):
         return repo._parse_importe(a) == repo._parse_importe(b)
     if campo == "fecha":
         return fechas.parsear(a) == fechas.parsear(b)
+    if campo == "activo":
+        return bool(a) == bool(b)
     return str(a or "").strip() == str(b or "").strip()
 
 
@@ -73,11 +83,14 @@ def registrar(documento, doc, accion, cambios):
 
 
 def instantanea(documento, doc, cliente_nombre=""):
-    """Datos del documento tal como estaban, para dejar constancia al eliminarlo."""
-    filas = [{"campo": "cliente", "etiqueta": "Cliente", "antes": cliente_nombre or "(sin cliente)", "despues": ""}]
+    """Datos del documento tal como estaban, para dejar constancia al eliminarlo.
+    `cliente_nombre` es el dueño del boleto/recibo; un cliente no tiene uno (ya figura
+    como "Nombre" en sus propios campos)."""
+    filas = [{"campo": "cliente", "etiqueta": "Cliente", "antes": cliente_nombre or "(sin cliente)", "despues": ""}] if cliente_nombre or documento != "cliente" else []
     for campo, etiqueta in ETIQUETAS[documento].items():
-        if str(doc.get(campo) or "").strip():
-            filas.append({"campo": campo, "etiqueta": etiqueta, "antes": _texto(campo, doc.get(campo)), "despues": ""})
+        valor = doc.get(campo)
+        if isinstance(valor, bool) or str(valor or "").strip():
+            filas.append({"campo": campo, "etiqueta": etiqueta, "antes": _texto(campo, valor), "despues": ""})
     return filas
 
 
@@ -96,7 +109,13 @@ def ids_editados(documento):
     ))
 
 
-def recientes(limite=300):
-    return list(Session.scalars(
-        select(AuditoriaDocumento).order_by(AuditoriaDocumento.momento.desc(), AuditoriaDocumento.id.desc()).limit(limite)
-    ))
+def recientes(documento=None, usuario_id=None, limite=300):
+    """Lista para la pantalla de Auditoría, con filtro opcional por tipo de documento
+    y/o por quién hizo el cambio."""
+    consulta = select(AuditoriaDocumento)
+    if documento:
+        consulta = consulta.where(AuditoriaDocumento.documento == documento)
+    if usuario_id:
+        consulta = consulta.where(AuditoriaDocumento.usuario_id == usuario_id)
+    consulta = consulta.order_by(AuditoriaDocumento.momento.desc(), AuditoriaDocumento.id.desc()).limit(limite)
+    return list(Session.scalars(consulta))

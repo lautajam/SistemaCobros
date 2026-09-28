@@ -5,8 +5,27 @@
 <div class="page-head">
     <div class="titulo">
         <h1>Auditoría</h1>
-        <p class="sub">Todo lo que un administrador modificó o eliminó en boletos y recibos ya emitidos. Esto no aparece en los PDF.</p>
+        <p class="sub">Todo lo que un administrador modificó o eliminó en clientes, boletos y recibos. Esto no aparece en los PDF.</p>
     </div>
+</div>
+
+<div class="toolbar">
+    <form method="get" role="search">
+        <select class="input" name="documento" aria-label="Filtrar por tipo de documento">
+            <option value="">Todos los tipos</option>
+            {% for clave, etiqueta in documentos.items() %}
+            <option value="{{ clave }}" {{ "selected" if clave == documento }}>{{ etiqueta }}s</option>
+            {% endfor %}
+        </select>
+        <select class="input" name="usuario_id" aria-label="Filtrar por administrador">
+            <option value="">Cualquier administrador</option>
+            {% for a in admins %}
+            <option value="{{ a.id }}" {{ "selected" if usuario_id == a.id|string }}>{{ a.nombre_visible }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-secondary" type="submit">Filtrar</button>
+        {% if documento or usuario_id %}<a class="btn btn-ghost" href="{{ url_for('auditoria.index') }}">Ver todas</a>{% endif %}
+    </form>
 </div>
 
 {% if registros %}
@@ -16,8 +35,15 @@
         <li>
             <p class="cambio-quien">
                 <strong>{{ h.accion|capitalize }}</strong>
-                {% if h.accion == 'eliminado' %}{{ h.documento }} N.º {{ h.numero }}{% else %}
-                <a href="{{ url_for('boletos.detalle', boleto_id=h.documento_id) if h.documento == 'boleto' else url_for('recibos.detalle', recibo_id=h.documento_id) }}">{{ h.documento }} N.º {{ h.numero }}</a>{% endif %}
+                {% if h.accion == 'eliminado' %}
+                    {{ documentos.get(h.documento, h.documento) }} «{{ h.numero }}»
+                {% elif h.documento == 'boleto' %}
+                    <a href="{{ url_for('boletos.detalle', boleto_id=h.documento_id) }}">boleto N.º {{ h.numero }}</a>
+                {% elif h.documento == 'recibo' %}
+                    <a href="{{ url_for('recibos.detalle', recibo_id=h.documento_id) }}">recibo N.º {{ h.numero }}</a>
+                {% else %}
+                    <a href="{{ url_for('clientes.detalle', cliente_id=h.documento_id) }}">cliente «{{ h.numero }}»</a>
+                {% endif %}
                 por <strong>{{ h.usuario_texto or "usuario eliminado" }}</strong> el {{ h.momento|fecha_hora }}
             </p>
             <ul>
@@ -30,6 +56,6 @@
     </ol>
 </div>
 {% else %}
-<div class="card empty">{{ icon("shield") }}<p>Todavía no se modificó ni eliminó ningún boleto o recibo.</p></div>
+<div class="card empty">{{ icon("shield") }}<p>{{ "No hay resultados con ese filtro." if (documento or usuario_id) else "Todavía no se modificó ni eliminó ningún cliente, boleto o recibo." }}</p></div>
 {% endif %}
 {% endblock %}
