@@ -94,7 +94,7 @@ service-app/
 
 ### Modelo de datos (tablas)
 
-- **clientes:** `id, nombre, dni_cuit, telefono, email, direccion, localidad, codigo_postal, observaciones`
+- **clientes:** `id, nombre, dni_cuit, telefono, email, direccion, localidad, codigo_postal, observaciones, activo`
 - **boletos:** `id, numero, cliente_id, fecha, hora, equipo, marca, modelo, numero_serie, especificaciones, accesorios, estado_fisico, problema, observaciones, pdf_archivo`
 - **recibos:** `id, numero, cliente_id, boleto_id, fecha, equipo, trabajo, descripcion, importe, forma_pago, observaciones, pdf_archivo`
 - **equipos** (auxiliar): `id, cliente_id, tipo, marca, modelo, numero_serie` — se completa solo si el boleto trae N.º de serie, como base para consultar en el futuro el historial de un mismo equipo.
@@ -228,7 +228,7 @@ No hay pantalla de registro: **nadie puede crear un usuario sin ser administrado
 | | Administrador | Técnico |
 |---|:---:|:---:|
 | Clientes: ver / crear | ✅ | ✅ |
-| Clientes: editar / eliminar | ✅ | ❌ |
+| Clientes: editar / deshabilitar / eliminar | ✅ | ❌ |
 | Boletos y recibos: ver / crear / PDF | ✅ | ✅ |
 | Boletos y recibos: **editar y eliminar** (siempre queda registrado) | ✅ | ❌ |
 | Auditoría (quién modificó o eliminó qué) | ✅ | ❌ |
@@ -250,7 +250,8 @@ Los permisos se controlan **en el servidor** (un técnico que escriba a mano la 
 - **Contraseña** (de cualquier usuario): el admin define una nueva; se cierran las sesiones abiertas de esa persona.
 - **Desactivar**: el técnico no puede ingresar, pero se conserva su historial. **Eliminar** solo se permite si no tiene boletos ni recibos a su nombre.
 - No se puede eliminar ni desactivar a un administrador desde la pantalla, así que siempre queda al menos uno. Los administradores adicionales se crean solo por comando (abajo).
-- Un cliente solo se puede eliminar si no tiene boletos ni recibos.
+- Un cliente solo se puede eliminar si no tiene boletos ni recibos (deshabilitado o no).
+- **Deshabilitar un cliente** (solo admin, desde su ficha): deja de aparecer en la búsqueda y ya no se le pueden generar boletos ni recibos nuevos, pero su historial no cambia y se puede volver a habilitar en cualquier momento. En la pantalla **Clientes**, el admin tiene una pestaña «Todos» para verlos igual (con su estado); el técnico nunca los ve, ni en la lista ni en el buscador de boletos/recibos.
 - **En un cliente todos los datos son obligatorios, tanto al crearlo como al modificarlo** (nombre, DNI/CUIT, teléfono, email, dirección, localidad y código postal). La única excepción son las **observaciones**, que son opcionales en todos los casos del proyecto (boletos, recibos y clientes) y se rotulan «Observaciones (opcional)». Se valida desde Clientes → Nuevo/Editar y desde el botón «Cliente nuevo» de boletos y recibos, tanto en el navegador como en el servidor (espacios en blanco no cuentan; el email tiene que ser válido).
 - **No puede haber dos usuarios con el mismo usuario ni con el mismo nombre** (se compara sin distinguir mayúsculas ni espacios de más); lo controla la app y también la base de datos.
 - Arriba a la derecha se ve el **usuario** de quien inició sesión; el nombre completo aparece al abrir su menú.

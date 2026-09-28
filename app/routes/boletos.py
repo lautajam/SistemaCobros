@@ -53,10 +53,10 @@ def nuevo():
     if request.method == "POST":
         cliente_id = (request.form.get("cliente_id") or "").strip()
         cliente = _get_cliente(cliente_id)
-        if not cliente:
+        if not cliente or not cliente.get("activo", True):
+            error = "Debe seleccionar (o crear) un cliente antes de guardar." if not cliente else                 "Este cliente está deshabilitado: no se le pueden generar documentos nuevos. Podés habilitarlo desde su ficha."
             return render_template(
-                "boletos/form.html", boleto=None, fecha_hoy=date.today().isoformat(),
-                error="Debe seleccionar (o crear) un cliente antes de guardar.",
+                "boletos/form.html", boleto=None, fecha_hoy=date.today().isoformat(), error=error,
             ), 400
 
         error, equipo = formularios.validar_fecha_y_equipo(request.form)

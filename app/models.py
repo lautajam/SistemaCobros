@@ -75,6 +75,9 @@ class Cliente(Serializable, Base):
     localidad: Mapped[str] = _texto()
     codigo_postal: Mapped[str] = _texto()
     observaciones: Mapped[str] = _texto()
+    # Deshabilitado: no aparece en la búsqueda ni se le pueden generar documentos nuevos,
+    # pero conserva su historial (boletos, recibos) intacto y se puede volver a habilitar.
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
 
 
 class Boleto(Serializable, Base):

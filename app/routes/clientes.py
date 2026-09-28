@@ -1,8 +1,9 @@
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user
 from sqlalchemy import Integer, cast, delete, func, or_, select
 
 from .. import counters, models, repo
-from ..auth import permiso
+from ..auth import permiso, tiene_permiso
 from ..db import Session
 from ..models import Boleto, Cliente, Equipo, Recibo
 
@@ -60,9 +61,16 @@ def crear_cliente(formulario) -> dict:
 @permiso("clientes:ver")
 def lista():
     q = (request.args.get("q") or "").strip()
+    # Solo el admin puede pedir ver los deshabilitados; para el técnico la búsqueda
+    # siempre excluye a los clientes deshabilitados, sin importar lo que pida la URL.
+    estado = (request.args.get("estado") or "activos").strip()
+    if estado not in ("activos", "todos") or not tiene_permiso(current_user, "clientes:editar"):
+        estado = "activos"
     criterios = [_criterio_busqueda(q, incluir_email=True)] if q else []
+    if estado == "activos":
+        criterios.append(Cliente.activo.is_(True))
     clientes = repo.listar(Cliente, *criterios, order_by=[func.lower(Cliente.nombre)])
-    return render_template("clientes/lista.html", clientes=clientes, q=request.args.get("q", ""))
+    return render_template("clientes/lista.html", clientes=clientes, q=request.args.get("q", ""), estado=estado)
 
 
 @bp.route("/nuevo", methods=["GET", "POST"])
@@ -93,8 +101,12 @@ def crear_rapido():
 @bp.route("/api/buscar")
 @permiso("clientes:ver")
 def api_buscar():
+    # El buscador de boletos/recibos nunca ofrece un cliente deshabilitado: no se le
+    # pueden generar documentos nuevos.
     q = (request.args.get("q") or "").strip()
-    criterios = [_criterio_busqueda(q, incluir_email=False)] if q else []
+    criterios = [Cliente.activo.is_(True)]
+    if q:
+        criterios.append(_criterio_busqueda(q, incluir_email=False))
     clientes = repo.listar(Cliente, *criterios, order_by=[func.lower(Cliente.nombre)])
     return jsonify(clientes[:25])
 
@@ -128,6 +140,21 @@ def editar(cliente_id):
         repo.actualizar(Cliente, cliente_id, _campos_desde(request.form))
         return redirect(url_for("clientes.detalle", cliente_id=cliente_id))
     return render_template("clientes/form.html", cliente=cliente, valores=cliente)
+
+
+@bp.route("/<cliente_id>/estado", methods=["POST"])
+@permiso("clientes:editar")
+def estado(cliente_id):
+    cliente = Session.get(Cliente, cliente_id)
+    if cliente is None:
+        abort(404)
+    cliente.activo = not cliente.activo
+    Session.commit()
+    if cliente.activo:
+        flash(f"Cliente «{cliente.nombre}» habilitado: vuelve a aparecer en la búsqueda.", "success")
+    else:
+        flash(f"Cliente «{cliente.nombre}» deshabilitado: ya no aparece en la búsqueda ni se le pueden generar documentos nuevos. Su historial no cambia.", "success")
+    return redirect(url_for("clientes.detalle", cliente_id=cliente_id))
 
 
 @bp.route("/<cliente_id>/eliminar", methods=["POST"])

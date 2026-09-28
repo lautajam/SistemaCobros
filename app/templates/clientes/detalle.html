@@ -7,12 +7,23 @@
 <div class="page-head">
     <div class="titulo">
         <h1>{{ cliente.nombre }}</h1>
-        {% if cliente.telefono %}<p class="sub">{{ icon("phone") }} {{ cliente.telefono }}</p>{% endif %}
+        <p class="sub">
+            {% if cliente.telefono %}{{ icon("phone") }} {{ cliente.telefono }}{% endif %}
+            {% if not cliente.activo %}{% if cliente.telefono %}· {% endif %}<span class="badge badge-gris">Deshabilitado</span>{% endif %}
+        </p>
     </div>
     <div class="page-actions">
         {% if puede('clientes:editar') %}<a class="btn btn-secondary" href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}">{{ icon("edit") }} Editar</a>{% endif %}
+        {% if cliente.activo %}
         <a class="btn" href="{{ url_for('boletos.nuevo', cliente_id=cliente.id) }}">{{ icon("plus") }} Boleto</a>
         <a class="btn btn-success" href="{{ url_for('recibos.nuevo', cliente_id=cliente.id) }}">{{ icon("plus") }} Recibo</a>
+        {% endif %}
+        {% if puede('clientes:editar') %}
+        <form method="post" action="{{ url_for('clientes.estado', cliente_id=cliente.id) }}" style="display:contents">
+            {{ csrf() }}
+            <button class="btn btn-secondary" type="submit">{{ "Deshabilitar" if cliente.activo else "Habilitar" }}</button>
+        </form>
+        {% endif %}
         {% if puede('clientes:eliminar') %}
         <form method="post" action="{{ url_for('clientes.eliminar', cliente_id=cliente.id) }}" style="display:contents"
               data-confirm="Se elimina a «{{ cliente.nombre }}». Solo se puede si no tiene boletos ni recibos."
@@ -23,6 +34,9 @@
         {% endif %}
     </div>
 </div>
+{% if not cliente.activo %}
+<div class="callout callout-info" style="margin-bottom:20px">{{ icon("shield") }} <span>Este cliente está deshabilitado: no aparece en la búsqueda y no se le pueden generar boletos ni recibos nuevos. Su historial no cambia.</span></div>
+{% endif %}
 
 <div class="card card-pad" style="margin-bottom:24px">
     <dl class="detalles">

@@ -11,14 +11,22 @@
 
 {% if error %}<div class="callout callout-error" style="margin-bottom:16px">{{ icon("alert") }} {{ error }}</div>{% endif %}
 
+{% if puede('clientes:editar') %}
+<nav class="segmented" aria-label="Estado" style="margin-bottom:16px">
+    <a href="{{ url_for('clientes.lista', q=q, estado='activos') }}" {% if estado == 'activos' %}aria-current="page"{% endif %}>Activos</a>
+    <a href="{{ url_for('clientes.lista', q=q, estado='todos') }}" {% if estado == 'todos' %}aria-current="page"{% endif %}>Todos</a>
+</nav>
+{% endif %}
+
 <div class="toolbar">
     <form method="get" role="search">
+        {% if estado == 'todos' %}<input type="hidden" name="estado" value="todos">{% endif %}
         <div class="input-icono">
             {{ icon("search") }}
             <input class="input" type="search" name="q" value="{{ q }}" placeholder="Nombre, DNI o teléfono" aria-label="Buscar clientes">
         </div>
         <button class="btn btn-secondary" type="submit">Buscar</button>
-        {% if q %}<a class="btn btn-ghost" href="{{ url_for('clientes.lista') }}">Limpiar</a>{% endif %}
+        {% if q %}<a class="btn btn-ghost" href="{{ url_for('clientes.lista', estado=estado) }}">Limpiar</a>{% endif %}
     </form>
 </div>
 
@@ -26,7 +34,7 @@
 <div class="table-wrap">
     <table class="table">
         <thead>
-            <tr><th>Nombre</th><th>DNI / CUIT</th><th>Teléfono</th><th>Localidad</th><th></th></tr>
+            <tr><th>Nombre</th><th>DNI / CUIT</th><th>Teléfono</th><th>Localidad</th>{% if estado == 'todos' %}<th>Estado</th>{% endif %}<th></th></tr>
         </thead>
         <tbody>
             {% for c in clientes %}
@@ -35,6 +43,9 @@
                 <td data-label="DNI / CUIT">{{ c.dni_cuit or "—" }}</td>
                 <td data-label="Teléfono">{{ c.telefono or "—" }}</td>
                 <td data-label="Localidad">{{ c.localidad or "—" }}</td>
+                {% if estado == 'todos' %}
+                <td data-label="Estado">{% if c.activo %}<span class="badge badge-verde">Habilitado</span>{% else %}<span class="badge badge-gris">Deshabilitado</span>{% endif %}</td>
+                {% endif %}
                 <td class="acciones">
                     <a class="btn btn-secondary btn-sm" href="{{ url_for('clientes.detalle', cliente_id=c.id) }}">Ver</a>
                     {% if puede('clientes:editar') %}<a class="btn btn-secondary btn-sm" href="{{ url_for('clientes.editar', cliente_id=c.id) }}">{{ icon("edit") }} Editar</a>{% endif %}
